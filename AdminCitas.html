@@ -51,8 +51,8 @@
 <div class="modal-overlay oculto" id="modal-whatsapp">
   <div class="modal-card">
     <div class="modal-icono">💬</div>
-    <h3 class="modal-titulo">Cita cancelada</h3>
-    <p class="modal-sub">¿Deseas avisarle al cliente por WhatsApp?</p>
+    <h3 class="modal-titulo" id="wa-titulo">Cita cancelada</h3>
+    <p class="modal-sub" id="wa-sub">¿Deseas avisarle al cliente por WhatsApp?</p>
     <div class="modal-cliente-info" id="modal-whatsapp-info">
       <span class="modal-cliente-nombre" id="wa-nombre">—</span>
       <span class="modal-cliente-tel"    id="wa-telefono">—</span>
@@ -227,6 +227,11 @@
   .cita-acciones .btn-eliminar { background: #fff; color: #d9534f; border: 1px solid #d9534f; }
   .cita-acciones .btn-eliminar:hover { background: #d9534f; color: #fff; }
 
+  .cita-chip-vencida { background: #fff3cd; color: #856404; }
+  .card-cita.cita-vencida { background: #fffdf5; }
+  .btn-accion-contactar { background: #25D366; border: none; border-radius: 8px; color: white; font-weight: 600; }
+  .btn-accion-contactar:hover { background: #1ebe5a; }
+
   /* ══ Paginación ══ */
   .paginacion {
     display: flex;
@@ -265,6 +270,7 @@
   window.filtrarHoy           = filtrarHoy;
   window.limpiarFechas        = limpiarFechas;
   window.irAPagina            = irAPagina;
+  window.contactarCliente     = contactarCliente;
 
   if (document.readyState !== 'loading') irAPagina(1);
   else document.addEventListener('DOMContentLoaded', function() { irAPagina(1); });
@@ -384,9 +390,10 @@
     var estado    = c.Estado || '';
     var productos = c.Productos || [];
     var botones   = botonesEstado(c);
+    var vencida   = esVencida(c);
 
     var card = document.createElement('div');
-    card.className = 'card-cita estado-borde-' + estado.toLowerCase();
+    card.className = 'card-cita estado-borde-' + estado.toLowerCase() + (vencida ? ' cita-vencida' : '');
     card.innerHTML =
       '<div class="cita-header">'
       +   '<div class="cita-cliente-box">'
@@ -398,6 +405,7 @@
       + '<div class="cita-cuando">'
       +   '<span class="cita-chip">📅 ' + escHTML(formatearFechaDisplay(c.Fecha)) + '</span>'
       +   '<span class="cita-chip">🕒 ' + escHTML(c.Hora) + '</span>'
+      +   (vencida ? '<span class="cita-chip cita-chip-vencida">⚠️ Fecha pasada sin atender</span>' : '')
       + '</div>'
       + '<div class="cita-grid">'
       +   dato('Servicio', c.Nombre_Servicio)
@@ -422,16 +430,26 @@
       + '<span class="valor">' + escHTML(valor || '—') + '</span></div>';
   }
 
+  // Cita de un día anterior que nadie completó ni canceló
+  function esVencida(c) {
+    var estado = c.Estado || '';
+    return (estado === 'Pendiente' || estado === 'Confirmada')
+      && String(c.Fecha || '') !== '' && String(c.Fecha) < fechaHoyISO();
+  }
+
   function botonesEstado(c) {
     var estado = c.Estado || '';
     var idCita = c.ID_Cita || '';
 
     if (estado === 'Cancelada' || estado === 'Completada') return '';
     var btns = '';
-    if (estado === 'Pendiente') {
+    if (esVencida(c)) {
+      if (c.Telefono) {
+        btns += '<button class="btn-accion-contactar" onclick="contactarCliente(\'' + idCita + '\')">💬 Contactar</button>';
+      }
+    } else if (estado === 'Pendiente') {
       btns += '<button class="btn-accion-confirmar" onclick="cambiarEstado(\'' + idCita + '\', \'Confirmada\')">Confirmar</button>';
-    }
-    if (estado === 'Confirmada') {
+    } else if (estado === 'Confirmada') {
       btns += '<button class="btn-accion-completar" onclick="cambiarEstado(\'' + idCita + '\', \'Completada\')">Completar</button>';
     }
     btns += '<button class="btn-eliminar" onclick="cancelarCitaAdmin(\'' + idCita + '\')">Cancelar</button>';
@@ -478,16 +496,30 @@
       .withFailureHandler(function(e) { alert((e && e.message) || 'No se pudo cancelar la cita'); recargarCitas(); })
       .cancelarCita(idCita);
 
+    abrirModalWhatsapp(cita, 'cancelada');
+    _idCitaPendiente = null;
+  }
+
+  function contactarCliente(idCita) {
+    var cita = buscarCita(idCita);
+    if (cita) abrirModalWhatsapp(cita, 'contacto');
+  }
+
+  function abrirModalWhatsapp(cita, modo) {
     var telefono = cita.Telefono || '';
+    document.getElementById('wa-titulo').textContent = modo === 'contacto' ? 'Contactar al cliente' : 'Cita cancelada';
+    document.getElementById('wa-sub').textContent    = modo === 'contacto'
+      ? '¿Abrir WhatsApp para escribirle sobre esta cita?'
+      : '¿Deseas avisarle al cliente por WhatsApp?';
     document.getElementById('wa-nombre').textContent   = cita.Nombre_Cliente || '';
     document.getElementById('wa-telefono').textContent = '📞 ' + (telefono || 'Sin teléfono');
     var modal = document.getElementById('modal-whatsapp');
+    modal.dataset.modo     = modo;
     modal.dataset.telefono = telefono;
     modal.dataset.nombre   = cita.Nombre_Cliente || '';
     modal.dataset.fecha    = formatearFechaDisplay(cita.Fecha);
     modal.dataset.hora     = cita.Hora || '';
     modal.classList.remove('oculto');
-    _idCitaPendiente = null;
   }
 
   function cerrarModalCancelar() {
@@ -512,8 +544,11 @@
     var numero = telefono.toString().replace(/\D/g, '');
     if (numero.length === 8) numero = '503' + numero;
 
-    var mensaje = 'Hola ' + modal.dataset.nombre + ', te escribimos para avisarte que tu cita del '
-      + modal.dataset.fecha + ' a las ' + modal.dataset.hora + ' ha sido cancelada. Si deseas reagendar, contáctanos. ¡Gracias!';
+    var mensaje = modal.dataset.modo === 'contacto'
+      ? 'Hola ' + modal.dataset.nombre + ', te escribimos por tu cita del ' + modal.dataset.fecha + ' a las '
+        + modal.dataset.hora + '. ¿Pudiste asistir? Si deseas reagendar, contáctanos. ¡Gracias!'
+      : 'Hola ' + modal.dataset.nombre + ', te escribimos para avisarte que tu cita del '
+        + modal.dataset.fecha + ' a las ' + modal.dataset.hora + ' ha sido cancelada. Si deseas reagendar, contáctanos. ¡Gracias!';
 
     window.open('https://wa.me/' + numero + '?text=' + encodeURIComponent(mensaje), '_blank');
     cerrarModalWhatsapp();

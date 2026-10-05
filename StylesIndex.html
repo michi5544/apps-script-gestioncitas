@@ -358,4 +358,114 @@
     font-weight: 700;
     color: #155724;
   }
+
+  /* ══════════════════════════════════════════════════════════
+     REDISEÑO — formulario público de reservas
+     ══════════════════════════════════════════════════════════ */
+  .reserva-wrap { padding: 24px 16px 48px; }
+
+  .reserva-logo {
+    width: 64px;
+    height: 64px;
+    margin: 0 auto 12px;
+    border-radius: 20px;
+    background: linear-gradient(135deg, #5aa0e6, #3a78b5);
+    box-shadow: 0 6px 16px rgba(74,144,217,.35);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 30px;
+  }
+  .reserva-titulo { font-size: 24px; letter-spacing: -0.01em; color: var(--texto); }
+  .reserva-sub    { font-size: 14px; color: var(--texto-suave); }
+
+  .paso-dot { width: 32px; height: 32px; box-shadow: 0 0 0 4px var(--fondo); position: relative; z-index: 1; }
+  .paso-dot.activo { box-shadow: 0 0 0 4px var(--fondo), 0 2px 8px rgba(74,144,217,.45); }
+
+  .reserva-wrap .paso-card,
+  .reserva-wrap .resumen-card {
+    background: var(--superficie);
+    border: 1px solid var(--borde);
+    border-radius: var(--radio);
+    padding: 18px;
+    margin-bottom: 14px;
+    box-shadow: var(--sombra);
+  }
+  .reserva-wrap .paso-card.paso-opcional { border-style: dashed; box-shadow: none; background: #fcfdff; }
+
+  .reserva-wrap .paso-head { margin-bottom: 16px; }
+  .reserva-wrap .paso-num  { width: 28px; height: 28px; font-size: 13px; }
+  .reserva-wrap .paso-label { font-size: 15px; color: var(--texto); }
+  .reserva-wrap .paso-label--opt { color: var(--azul); }
+
+  .reserva-wrap .campo { gap: 6px; margin-bottom: 14px; }
+  .reserva-wrap .campo-row { gap: 12px; }
+  .reserva-wrap .campo-label {
+    font-size: 11px;
+    color: var(--texto-suave);
+    letter-spacing: .05em;
+  }
+
+  .reserva-wrap .paso-card input,
+  .reserva-wrap .paso-card select {
+    min-height: 46px;
+    padding: 10px 12px;
+    font-size: 16px; /* evita el zoom automático en iOS */
+    border: 1.5px solid var(--borde);
+    border-radius: var(--radio-campo);
+    background: var(--campo);
+  }
+  .reserva-wrap .paso-card input:hover,
+  .reserva-wrap .paso-card select:hover { border-color: #cfd6e4; }
+  .reserva-wrap .paso-card input:focus,
+  .reserva-wrap .paso-card select:focus {
+    border-color: var(--azul);
+    background: #fff;
+    box-shadow: var(--anillo);
+  }
+
+  .reserva-wrap .pago-grid { gap: 10px; }
+  .reserva-wrap .pago-chip {
+    border: 1.5px solid var(--borde);
+    border-radius: var(--radio);
+    padding: 12px 6px;
+    font-weight: 600;
+    color: var(--texto-suave);
+  }
+  .reserva-wrap .pago-chip:hover  { background: var(--azul-claro); border-color: var(--azul); color: var(--azul); }
+  .reserva-wrap .pago-chip.activo {
+    background: var(--azul-claro);
+    border-color: var(--azul);
+    color: #1a5fa8;
+    box-shadow: 0 0 0 3px rgba(74,144,217,.15);
+  }
+
+  .reserva-wrap .prod-item { padding: 12px 0; }
+  .reserva-wrap .prod-nombre { font-weight: 600; color: var(--texto); }
+  .reserva-wrap .stepper-btn { width: 32px; height: 32px; border-radius: 10px; font-size: 18px; }
+  .reserva-wrap .stepper-btn:hover { background: var(--azul-claro); }
+
+  .reserva-wrap .resumen-card { background: var(--azul-claro); border-color: #cfe1f5; box-shadow: none; }
+  .reserva-wrap .resumen-titulo { color: #1a5fa8; }
+  .reserva-wrap .resumen-linea { border-bottom-color: #d6e6f8; color: var(--texto); }
+  .reserva-wrap .resumen-total-row { font-size: 17px; color: #1a5fa8; }
+
+  .btn-confirmar {
+    min-height: 52px;
+    border-radius: var(--radio);
+    font-size: 16px;
+    box-shadow: 0 4px 14px rgba(74,144,217,.4);
+  }
+  .btn-confirmar:disabled { box-shadow: none; }
+
+  #mensaje { border-radius: var(--radio-campo); font-weight: 600; text-align: left; }
+
+  .confirmacion-card { border-radius: 20px; box-shadow: var(--sombra); border: 1px solid var(--borde); }
+  .confirmacion-numero { border-radius: var(--radio-campo); }
+  .confirmacion-total  { border-radius: var(--radio-campo); }
+
+  @media (max-width: 380px) {
+    .reserva-wrap .campo-row { flex-direction: column; gap: 0; }
+    .reserva-wrap .pago-chip { font-size: 12px; }
+  }
 </style>

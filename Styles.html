@@ -1,13 +1,34 @@
 <style>
+  :root {
+    --azul:        #4a90d9;
+    --azul-osc:    #3a78b5;
+    --azul-claro:  #eaf2fb;
+    --texto:       #1f2937;
+    --texto-suave: #6b7280;
+    --texto-tenue: #9ca3af;
+    --borde:       #e5e7eb;
+    --fondo:       #f4f6fb;
+    --superficie:  #ffffff;
+    --campo:       #f9fafb;
+    --verde:       #5cb85c;
+    --rojo:        #d9534f;
+    --radio:       14px;
+    --radio-campo: 10px;
+    --sombra:      0 1px 2px rgba(16,24,40,.05), 0 4px 16px rgba(16,24,40,.06);
+    --anillo:      0 0 0 3px rgba(74,144,217,.22);
+  }
+
   * {
     box-sizing: border-box;
-    font-family: Arial, sans-serif;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
   }
 
   body {
-    background: #f4f4f9;
+    background: var(--fondo);
+    color: var(--texto);
     margin: 0;
     padding: 0;
+    -webkit-font-smoothing: antialiased;
   }
 
   input, select, textarea, button {
@@ -17,16 +38,32 @@
 
   button {
     width: 100%;
-    padding: 10px;
+    padding: 11px;
     margin-top: 12px;
-    background: #4a90d9;
+    background: var(--azul);
     color: white;
     border: none;
-    border-radius: 8px;
+    border-radius: var(--radio-campo);
     cursor: pointer;
     font-weight: 600;
-    transition: background 0.15s;
+    transition: background .15s, transform .05s, box-shadow .15s, opacity .15s;
   }
 
-  button:hover { background: #3a78b5; }
+  button:hover  { background: var(--azul-osc); }
+  button:active { transform: scale(.98); }
+
+  /* Foco visible y consistente en todos los controles */
+  button:focus-visible,
+  input:focus-visible,
+  select:focus-visible,
+  textarea:focus-visible {
+    outline: none;
+    box-shadow: var(--anillo);
+  }
+
+  input, select, textarea {
+    color: var(--texto);
+    transition: border-color .15s, background .15s, box-shadow .15s;
+  }
+  input::placeholder, textarea::placeholder { color: var(--texto-tenue); }
 </style>

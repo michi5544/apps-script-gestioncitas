@@ -285,4 +285,199 @@
     margin-bottom: 8px;
     min-height: 18px;
   }
+
+  /* ══════════════════════════════════════════════════════════
+     REDISEÑO — formularios y tarjetas (prefijo .admin-container
+     para imponerse a los <style> propios de cada vista)
+     ══════════════════════════════════════════════════════════ */
+  .admin-container .titulo-vista {
+    font-size: 22px;
+    font-weight: 700;
+    letter-spacing: -0.01em;
+    margin: 4px 0 14px;
+  }
+
+  /* — Formularios — */
+  .admin-container .form-card {
+    background: var(--superficie);
+    border: 1px solid var(--borde);
+    border-radius: var(--radio);
+    padding: 18px;
+    margin-bottom: 18px;
+    box-shadow: var(--sombra);
+  }
+
+  .admin-container .form-card-header {
+    padding-bottom: 12px;
+    margin-bottom: 14px;
+    border-bottom: 1px solid #f1f2f6;
+  }
+  .admin-container .form-card-header span { font-size: 16px; font-weight: 700; color: var(--texto); }
+
+  .admin-container .btn-form-cancelar {
+    background: #fff;
+    border: 1px solid var(--borde);
+    color: var(--texto-suave);
+    padding: 5px 12px;
+  }
+  .admin-container .btn-form-cancelar:hover { background: #fff5f5; border-color: var(--rojo); color: var(--rojo); }
+
+  .admin-container .form-grid { gap: 14px 12px; margin-bottom: 14px; }
+  .admin-container .form-field { gap: 6px; }
+
+  .admin-container .field-label,
+  .admin-container .agenda-field .field-label {
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--texto-suave);
+    text-transform: uppercase;
+    letter-spacing: .05em;
+  }
+
+  .admin-container .form-card .form-field input,
+  .admin-container .form-card .form-field textarea,
+  .admin-container .form-card .form-field select,
+  .admin-container .agenda-field select,
+  .admin-container .agenda-field input,
+  .admin-container .fecha-campo input {
+    min-height: 44px;
+    padding: 10px 12px;
+    border: 1.5px solid var(--borde);
+    border-radius: var(--radio-campo);
+    background: var(--campo);
+    color: var(--texto);
+    font-size: 15px;
+  }
+  .admin-container .form-card .form-field textarea { min-height: 76px; }
+
+  .admin-container .form-card .form-field input:hover,
+  .admin-container .form-card .form-field textarea:hover,
+  .admin-container .form-card .form-field select:hover,
+  .admin-container .agenda-field select:hover,
+  .admin-container .agenda-field input:hover { border-color: #cfd6e4; }
+
+  .admin-container .form-card .form-field input:focus,
+  .admin-container .form-card .form-field textarea:focus,
+  .admin-container .form-card .form-field select:focus,
+  .admin-container .agenda-field select:focus,
+  .admin-container .agenda-field input:focus,
+  .admin-container .fecha-campo input:focus {
+    outline: none;
+    border-color: var(--azul);
+    background: #fff;
+    box-shadow: var(--anillo);
+  }
+
+  .admin-container .btn-guardar,
+  .admin-container .btn-generar {
+    min-height: 46px;
+    padding: 12px;
+    border-radius: var(--radio-campo);
+    font-size: 15px;
+    font-weight: 700;
+    background: var(--azul);
+    box-shadow: 0 2px 6px rgba(74,144,217,.35);
+  }
+  .admin-container .btn-guardar:hover,
+  .admin-container .btn-generar:hover { background: var(--azul-osc); }
+  .admin-container .btn-guardar:disabled,
+  .admin-container .btn-generar:disabled { background: #9dbfe8; box-shadow: none; }
+
+  .admin-container .form-feedback,
+  .admin-container .generar-feedback {
+    border-radius: var(--radio-campo);
+    font-weight: 600;
+    text-align: left;
+    padding: 10px 14px;
+  }
+
+  /* — Tarjetas de lista (servicios, productos, clientes, horarios, genéricas) — */
+  .admin-container .servicio-card,
+  .admin-container .cliente-card,
+  .admin-container .horario-card,
+  .admin-container .card,
+  .admin-container .card-cita {
+    background: var(--superficie);
+    border: 1px solid var(--borde);
+    border-radius: var(--radio);
+    box-shadow: var(--sombra);
+    transition: box-shadow .15s, transform .15s;
+  }
+  .admin-container .servicio-card,
+  .admin-container .cliente-card { padding: 16px; margin-bottom: 12px; }
+  .admin-container .horario-card { padding: 12px 16px; margin-bottom: 10px; }
+  .admin-container .card { padding: 14px 16px; margin-bottom: 12px; }
+
+  .admin-container .servicio-card:hover,
+  .admin-container .cliente-card:hover,
+  .admin-container .card:hover {
+    box-shadow: 0 2px 4px rgba(16,24,40,.06), 0 8px 22px rgba(16,24,40,.09);
+  }
+
+  .admin-container .servicio-nombre { font-size: 16px; font-weight: 700; color: var(--texto); }
+  .admin-container .servicio-desc   { font-size: 13px; color: var(--texto-suave); line-height: 1.4; }
+  .admin-container .servicio-top    { margin-bottom: 10px; }
+  .admin-container .servicio-chips  { gap: 8px; margin-top: 8px; }
+
+  .admin-container .servicio-acciones button {
+    width: 36px;
+    height: 36px;
+    border-radius: 10px;
+  }
+
+  .admin-container .chip-dato {
+    padding: 4px 11px;
+    font-size: 12px;
+    font-weight: 700;
+  }
+
+  .admin-container .horario-hora { font-size: 16px; font-weight: 700; }
+
+  .admin-container .empleado-avatar,
+  .admin-container .cliente-avatar {
+    width: 42px;
+    height: 42px;
+    background: linear-gradient(135deg, #eaf2fb, #d6e6f8);
+    color: #1a5fa8;
+    font-size: 14px;
+  }
+
+  /* — Buscador y filtros — */
+  .admin-container .buscador-wrap input { padding-left: 38px !important; }
+  .admin-container .filtro-chip,
+  .admin-container .btn-mini { min-height: 38px; }
+  .admin-container .filtro-chip { padding: 8px 18px; }
+  .admin-container .filtro-chip.activo { box-shadow: 0 2px 6px rgba(74,144,217,.35); }
+
+  /* — Reportes — */
+  .admin-container .reporte-metrica {
+    border-radius: var(--radio);
+    padding: 14px 16px;
+    box-shadow: var(--sombra);
+    background: var(--superficie);
+  }
+  .admin-container .reporte-metrica.destacado { background: var(--azul-claro); }
+  .admin-container .reporte-metrica.ingreso   { background: #e3f4e8; }
+  .admin-container .reporte-metrica-label { color: var(--texto-suave); }
+  .admin-container .reporte-metrica-valor { font-size: 24px; letter-spacing: -0.01em; }
+
+  /* — Tarjetas de cita — */
+  .admin-container .card-cita { padding: 16px 16px 14px; margin-bottom: 14px; border-left-width: 4px; }
+  .admin-container .cita-cliente { font-size: 17px; font-weight: 700; }
+  .admin-container .cita-chip { background: var(--azul-claro); color: #1a5fa8; }
+  .admin-container .cita-chip.cita-chip-vencida { background: #fff3cd; color: #856404; }
+
+  /* — Barra de navegación — */
+  .bottom-nav { border-radius: 18px 18px 0 0; box-shadow: 0 -4px 20px rgba(16,24,40,.08); }
+  .mod-chip.activo { box-shadow: 0 1px 4px rgba(74,144,217,.25); }
+
+  /* — Móvil estrecho: formularios a una columna — */
+  @media (max-width: 420px) {
+    .admin-container { padding: 12px; }
+    .admin-container .form-card { padding: 14px; }
+    .admin-container .form-field { min-width: 100%; }
+    .admin-container .agenda-selector-row { flex-direction: column; gap: 10px; }
+    .admin-container .generar-grid .agenda-field { max-width: 100%; min-width: 100%; }
+    .admin-container .cita-grid { grid-template-columns: 1fr 1fr; }
+  }
 </style>

@@ -103,11 +103,37 @@ function obtenerCitas(filtroEstado, pagina, porPagina) {
 // ══════════════════════════════════════════════════════════
 //  CREAR CITA
 // ══════════════════════════════════════════════════════════
+var FORMAS_PAGO = ['Efectivo', 'Tarjeta', 'Transferencia'];
+
+function _validarDatosCita(nombre, telefono, idEmpleado, idServicio, fecha, hora, formaPago, productos) {
+  nombre = String(nombre || '').trim();
+  if (nombre.length < 2 || nombre.length > 100) throw new Error('Nombre inválido.');
+
+  var tel = String(telefono || '').replace(/[\s-]/g, '');
+  if (!/^\+?\d{8,15}$/.test(tel)) throw new Error('Teléfono inválido.');
+
+  if (!idEmpleado || !idServicio) throw new Error('Selecciona empleado y servicio.');
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(String(fecha)))  throw new Error('Fecha inválida.');
+  if (!/^\d{2}:\d{2}/.test(String(hora)))          throw new Error('Hora inválida.');
+  if (FORMAS_PAGO.indexOf(formaPago) === -1)        throw new Error('Forma de pago inválida.');
+
+  (productos || []).forEach(function(p) {
+    var cant = Number(p.cantidad);
+    if (!p.idProducto || !(cant >= 1) || cant % 1 !== 0 || cant > 99) {
+      throw new Error('Cantidad de producto inválida.');
+    }
+  });
+
+  return { nombre: nombre, telefono: tel };
+}
+
 function crearCitaPublica(nombreCliente, telefono, idEmpleado, idServicio, idAgenda, fecha, hora, formaPago, productos) {
+  var datos = _validarDatosCita(nombreCliente, telefono, idEmpleado, idServicio, fecha, hora, formaPago, productos);
+
   var lock = LockService.getScriptLock();
   lock.waitLock(15000);
   try {
-    return _crearCitaPublica(nombreCliente, telefono, idEmpleado, idServicio, idAgenda, fecha, hora, formaPago, productos);
+    return _crearCitaPublica(datos.nombre, datos.telefono, idEmpleado, idServicio, idAgenda, fecha, hora, formaPago, productos || []);
   } finally {
     lock.releaseLock();
   }
@@ -122,76 +148,99 @@ function _crearCitaPublica(nombreCliente, telefono, idEmpleado, idServicio, idAg
     }
   }
 
-  // 1. Buscar o crear cliente
+  // 1. Validar servicio y calcular total con precios del servidor
+  var servicio = fsGet('servicios', idServicio);
+  if (!servicio || servicio.activo !== true) throw new Error('El servicio seleccionado no existe.');
+  var total = Number(servicio.precio) || 0;
+
+  // 2. Productos: verificar stock actual (sin caché) y precios
+  var prodsCita = [];
+  var stockNuevo = [];
+  productos.forEach(function(p) {
+    var prod = fsGet('productos', p.idProducto);
+    if (!prod || prod.activo !== true) throw new Error('Un producto seleccionado no existe.');
+    var cantidad = Number(p.cantidad);
+    if (Number(prod.cantidad_stock) < cantidad) {
+      throw new Error('Stock insuficiente de "' + prod.titulo + '" (quedan ' + prod.cantidad_stock + ').');
+    }
+    var precioUnit = Number(prod.precio) || 0;
+    var subtotal   = precioUnit * cantidad;
+    total += subtotal;
+    prodsCita.push({
+      id_producto     : p.idProducto,
+      cantidad        : cantidad,
+      precio_unitario : precioUnit,
+      subtotal        : subtotal
+    });
+    stockNuevo.push({ id: p.idProducto, stock: Number(prod.cantidad_stock) - cantidad });
+  });
+
+  // 3. Cliente, número y cita
   var idCliente  = agregarCliente(nombreCliente, telefono, '');
   var numeroCita = getNextCitaNumero();
 
-  // 2. Calcular total
-  var servicios = getCacheData('servicios') || fsQuery('servicios', 'activo', 'EQUAL', true);
-  var prods     = getCacheData('productos') || fsQuery('productos', 'activo', 'EQUAL', true);
+  var idCita = fsCreate('citas', {
+    numero_cita     : numeroCita,
+    id_cliente      : idCliente,
+    id_empleado     : idEmpleado,
+    id_servicio     : idServicio,
+    id_agenda       : idAgenda || '',
+    fecha           : fecha,
+    hora            : hora,
+    estado          : 'Pendiente',
+    forma_pago      : formaPago,
+    total           : total,
+    notas           : '',
+    fecha_registro  : getFechaLocal(),
+    productos       : prodsCita
+  });
 
-  var servicio = null;
-  for (var i = 0; i < servicios.length; i++) {
-    if (servicios[i].id === idServicio) { servicio = servicios[i]; break; }
-  }
-  var total = servicio ? Number(servicio.precio) : 0;
-
-  var prodsCita = [];
-  if (productos && productos.length > 0) {
-    productos.forEach(function(p) {
-      var prod = null;
-      for (var j = 0; j < prods.length; j++) {
-        if (prods[j].id === p.idProducto) { prod = prods[j]; break; }
-      }
-      var precioUnit = prod ? Number(prod.precio) : 0;
-      var subtotal   = precioUnit * p.cantidad;
-      total += subtotal;
-      prodsCita.push({
-        id_producto     : p.idProducto,
-        cantidad        : p.cantidad,
-        precio_unitario : precioUnit,
-        subtotal        : subtotal
-      });
-    });
-  }
-
-  // 3. Crear cita en Firestore
-var idCita = fsCreate('citas', {
-  numero_cita     : numeroCita,
-  id_cliente      : idCliente,
-  id_empleado     : idEmpleado,
-  id_servicio     : idServicio,
-  id_agenda       : idAgenda,
-  fecha           : fecha,
-  hora            : hora,
-  estado          : 'Pendiente',
-  forma_pago      : formaPago,
-  total           : total,
-  notas           : '',
-  fecha_registro  : getFechaLocal(),
-  productos       : prodsCita
-});
-
-  // 4. Marcar horario como ocupado
+  // 4. Descontar stock y ocupar horario
+  stockNuevo.forEach(function(s) { fsUpdate('productos', s.id, { cantidad_stock: s.stock }); });
+  if (stockNuevo.length > 0) setCacheData('productos', null);
   if (idAgenda) ocuparHorario(idAgenda);
 
-return { id: idCita, numero: numeroCita };
+  return { id: idCita, numero: numeroCita };
 }
 
 // ══════════════════════════════════════════════════════════
 //  CAMBIAR ESTADO
 // ══════════════════════════════════════════════════════════
+var ESTADOS_CITA = ['Pendiente', 'Confirmada', 'Completada', 'Cancelada'];
+
 function cambiarEstadoCita(idCita, nuevoEstado) {
-  var cita = fsGet('citas', idCita);
-  if (!cita) throw new Error('Cita no encontrada: ' + idCita);
-  if (cita.estado === 'Completada') {
-    throw new Error('No se puede modificar una cita ya completada.');
-  }
+  var lock = LockService.getScriptLock();
+  lock.waitLock(15000);
+  try {
+    var cita = fsGet('citas', idCita);
+    if (!cita) throw new Error('Cita no encontrada: ' + idCita);
+    if (cita.estado === 'Completada') {
+      throw new Error('No se puede modificar una cita ya completada.');
+    }
+    if (cita.estado === 'Cancelada') {
+      throw new Error('No se puede modificar una cita cancelada.');
+    }
+    if (ESTADOS_CITA.indexOf(nuevoEstado) === -1) {
+      throw new Error('Estado inválido: ' + nuevoEstado);
+    }
 
-  fsUpdate('citas', idCita, { estado: nuevoEstado });
+    fsUpdate('citas', idCita, { estado: nuevoEstado });
 
-  if (nuevoEstado === 'Cancelada' && cita.id_agenda) {
-    liberarHorario(cita.id_agenda);
+    if (nuevoEstado === 'Cancelada') {
+      if (cita.id_agenda) liberarHorario(cita.id_agenda);
+      // Devolver stock de productos reservados
+      (cita.productos || []).forEach(function(cp) {
+        var prod = fsGet('productos', cp.id_producto);
+        if (prod) {
+          fsUpdate('productos', cp.id_producto, {
+            cantidad_stock: Number(prod.cantidad_stock) + Number(cp.cantidad)
+          });
+        }
+      });
+      setCacheData('productos', null);
+    }
+  } finally {
+    lock.releaseLock();
   }
 }
 

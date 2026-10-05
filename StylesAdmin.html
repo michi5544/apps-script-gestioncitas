@@ -320,12 +320,61 @@
      REDISEÑO — formularios y tarjetas (prefijo .admin-container
      para imponerse a los <style> propios de cada vista)
      ══════════════════════════════════════════════════════════ */
+  /* — Encabezado de página: ícono + título + subtítulo — */
   .admin-container .titulo-vista {
-    font-size: 22px;
-    font-weight: 700;
-    letter-spacing: -0.01em;
-    margin: 4px 0 14px;
+    position: relative;
+    min-height: 52px;
+    margin: 4px 0 18px;
+    padding: 2px 0 2px 64px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    font-size: 24px;
+    font-weight: 800;
+    letter-spacing: -0.02em;
+    line-height: 1.15;
+    color: var(--texto);
   }
+  .admin-container .titulo-vista::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 50px;
+    height: 50px;
+    border-radius: 16px;
+    background: linear-gradient(145deg, #5aa0e6, #3a78b5);
+    box-shadow: 0 6px 14px rgba(58,120,181,.35);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 24px;
+    line-height: 50px;
+    text-align: center;
+  }
+  .admin-container .titulo-vista::after {
+    font-size: 13px;
+    font-weight: 500;
+    letter-spacing: 0;
+    color: var(--texto-suave);
+    margin-top: 3px;
+  }
+  #vista-citas     .titulo-vista::before { content: '📅'; }
+  #vista-agenda    .titulo-vista::before { content: '🕒'; }
+  #vista-servicios .titulo-vista::before { content: '✂️'; }
+  #vista-productos .titulo-vista::before { content: '📦'; }
+  #vista-empleados .titulo-vista::before { content: '👤'; }
+  #vista-clientes  .titulo-vista::before { content: '🧑‍🤝‍🧑'; }
+  #vista-reportes  .titulo-vista::before { content: '📊'; }
+
+  #vista-citas     .titulo-vista::after { content: 'Revisa y gestiona las reservas'; }
+  #vista-servicios .titulo-vista::after { content: 'Catálogo de servicios y precios'; }
+  #vista-productos .titulo-vista::after { content: 'Inventario y precios de venta'; }
+  #vista-empleados .titulo-vista::after { content: 'Equipo de trabajo'; }
+  #vista-clientes  .titulo-vista::after { content: 'Directorio y contacto de clientes'; }
+  #vista-reportes  .titulo-vista::after { content: 'Resumen de actividad por fechas'; }
+  #vista-agenda    .titulo-vista::after { content: 'Horarios disponibles por empleado'; }
 
   /* — Formularios — */
   .admin-container .form-card {

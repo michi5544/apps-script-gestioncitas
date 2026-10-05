@@ -139,7 +139,15 @@ function buscarClientePorTelefono(telefono) {
 function agregarCliente(nombre, telefono, email) {
   var tel       = String(telefono).trim();
   var existente = buscarClientePorTelefono(tel);
-  if (existente) return existente.id;
+  if (existente) {
+    // Mismo teléfono: se conserva el cliente pero se actualiza el nombre si cambió
+    var nombreNuevo = String(nombre || '').trim();
+    if (nombreNuevo && nombreNuevo !== existente.nombre_cliente) {
+      fsUpdate('clientes', existente.id, { nombre_cliente: nombreNuevo });
+      setCacheData('clientes', null);
+    }
+    return existente.id;
+  }
 
   var id = fsCreate('clientes', {
     nombre_cliente  : String(nombre),

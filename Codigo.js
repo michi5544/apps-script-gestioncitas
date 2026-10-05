@@ -3,19 +3,6 @@
 //  Fuente única para estas funciones. No duplicar en otros archivos.
 // ══════════════════════════════════════════════════════════
 
-var SS = SpreadsheetApp.getActiveSpreadsheet();
-
-var SHEET = {
-  CONFIG         : 'Config',
-  SERVICIOS      : 'Servicios',
-  PRODUCTOS      : 'Productos',
-  CLIENTES       : 'Clientes',
-  EMPLEADOS      : 'Empleados',
-  AGENDA         : 'Agenda',
-  CITAS          : 'Citas_programadas',
-  CITA_PRODUCTOS : 'Cita_Productos',
-};
-
 // ══════════════════════════════════════════════════════════
 //  ROUTING
 // ══════════════════════════════════════════════════════════
@@ -37,35 +24,6 @@ function include(filename) {
 // ══════════════════════════════════════════════════════════
 //  UTILIDADES
 // ══════════════════════════════════════════════════════════
-function getSheet(nombre) {
-  var sheet = SS.getSheetByName(nombre);
-  if (!sheet) throw new Error('Hoja no encontrada: ' + nombre);
-  return sheet;
-}
-
-function sheetToObjects(sheetName) {
-  var sheet   = getSheet(sheetName);
-  var data    = sheet.getDataRange().getValues();
-  var headers = data[0];
-  var rows    = data.slice(1);
-
-  return rows
-    .filter(function(row) {
-      return row.some(function(cell) { return cell !== '' && cell !== null; });
-    })
-    .map(function(row) {
-      var obj = {};
-      headers.forEach(function(h, i) {
-        var val = row[i];
-        if (val instanceof Date) {
-          val = Utilities.formatDate(val, Session.getScriptTimeZone(), 'yyyy-MM-dd HH:mm:ss');
-        }
-        obj[h] = val;
-      });
-      return obj;
-    });
-}
-
 function getFechaLocal() {
   return Utilities.formatDate(new Date(), 'America/El_Salvador', 'yyyy-MM-dd HH:mm:ss');
 }
@@ -75,33 +33,6 @@ function formatearFecha(fecha) {
     return Utilities.formatDate(fecha, Session.getScriptTimeZone(), 'yyyy-MM-dd');
   }
   return String(fecha).split('T')[0];
-}
-
-function findRowIndex(sheet, colIndex, value) {
-  var values = sheet.getRange(1, colIndex + 1, sheet.getLastRow(), 1).getValues();
-  for (var i = 1; i < values.length; i++) {
-    if (values[i][0] == value) return i + 1;
-  }
-  return -1;
-}
-
-function getNextIdCounter(tabla) {
-  var lock = LockService.getScriptLock();
-  lock.waitLock(10000);
-  try {
-    var sheet  = getSheet(SHEET.CONFIG);
-    var values = sheet.getDataRange().getValues();
-    for (var i = 1; i < values.length; i++) {
-      if (values[i][0] === tabla) {
-        var nuevoId = Number(values[i][1]) + 1;
-        sheet.getRange(i + 1, 2).setValue(nuevoId);
-        return nuevoId;
-      }
-    }
-    throw new Error('Tabla no encontrada en Config: ' + tabla);
-  } finally {
-    lock.releaseLock();
-  }
 }
 
 // ══════════════════════════════════════════════════════════
@@ -134,11 +65,11 @@ function setCacheData(key, data, segundos) {
 //  REPORTES
 // ══════════════════════════════════════════════════════════
 function obtenerReporte(fechaInicio, fechaFin) {
-  var citas     = sheetToObjects(SHEET.CITAS);
-  var empleados = getCacheData('empleados') || sheetToObjects(SHEET.EMPLEADOS);
+  var citas     = fsGetAll('citas');
+  var empleados = obtenerEmpleados();
 
   var filtradas = citas.filter(function(c) {
-    var f = formatearFecha(c.Fecha);
+    var f = formatearFecha(c.fecha);
     return f >= fechaInicio && f <= fechaFin;
   });
 
@@ -148,14 +79,14 @@ function obtenerReporte(fechaInicio, fechaFin) {
   var conteoEmp    = {};
 
   filtradas.forEach(function(c) {
-    if (c.Estado === 'Completada') {
+    if (c.estado === 'Completada') {
       completadas++;
-      ingresoTotal += Number(c.Total) || 0;
+      ingresoTotal += Number(c.total) || 0;
     }
-    if (c.Estado === 'Cancelada') canceladas++;
+    if (c.estado === 'Cancelada') canceladas++;
 
-    if (c.ID_Empleado) {
-      var idEmp = String(c.ID_Empleado);
+    if (c.id_empleado) {
+      var idEmp = String(c.id_empleado);
       conteoEmp[idEmp] = (conteoEmp[idEmp] || 0) + 1;
     }
   });
@@ -166,10 +97,8 @@ function obtenerReporte(fechaInicio, fechaFin) {
   Object.keys(conteoEmp).forEach(function(idEmp) {
     if (conteoEmp[idEmp] > maxCitas) {
       maxCitas    = conteoEmp[idEmp];
-      var emp     = empleados.find(function(e) {
-        return String(e.ID_Empleado) === idEmp;
-      });
-      empleadoTop = emp ? emp.Nombre_Empleado : idEmp;
+      var emp     = empleados.find(function(e) { return String(e.id) === idEmp; });
+      empleadoTop = emp ? emp.nombre_empleado : idEmp;
     }
   });
 
@@ -183,57 +112,14 @@ function obtenerReporte(fechaInicio, fechaFin) {
   };
 }
 
+// Contador diario de citas. Debe llamarse dentro de un lock (ver crearCitaPublica).
 function getNextCitaNumero() {
   var hoy   = getFechaLocal().split(' ')[0];
   var docId = 'contador_' + hoy.replace(/-/g, '');
 
-  var token = getFirebaseToken();
-  var url   = getFirestoreBaseUrl() + '/config/' + docId;
+  var actual = fsGet('config', docId);
+  var numero = actual ? Number(actual.valor) + 1 : 1;
 
-  // Intentar leer el contador del día
-  var response = UrlFetchApp.fetch(url, {
-    headers            : { Authorization: 'Bearer ' + token },
-    muteHttpExceptions : true
-  });
-
-  var doc    = JSON.parse(response.getContentText());
-  var numero = 1;
-
-  if (doc.fields) {
-    // Ya existe — incrementar
-    numero = Number(fromFirestore(doc.fields).valor) + 1;
-  }
-
-  // Guardar el nuevo valor
-  UrlFetchApp.fetch(url, {
-    method      : 'patch',
-    contentType : 'application/json',
-    headers     : { Authorization: 'Bearer ' + token },
-    payload     : JSON.stringify({ fields: toFirestore({ valor: numero, fecha: hoy }) }),
-    muteHttpExceptions: true
-  });
-
+  fsUpdate('config', docId, { valor: numero, fecha: hoy });
   return numero;
 }
-
-function testCrearCita() {
-  try {
-    var id = crearCitaPublica(
-      'Test Cliente',
-      '71234567',
-      'ID_EMPLEADO_AQUI',  // pon el UUID real de un empleado
-      'ID_SERVICIO_AQUI',  // pon el UUID real de un servicio
-      'ID_AGENDA_AQUI',    // pon el UUID real de un slot de agenda
-      '2026-07-04',
-      '09:00',
-      'Efectivo',
-      []
-    );
-    Logger.log('Cita creada: ' + id);
-  } catch(e) {
-    Logger.log('ERROR: ' + e.message);
-    Logger.log('Stack: ' + e.stack);
-  }
-}
-
-

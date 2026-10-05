@@ -11,8 +11,12 @@ function getFirestoreBaseUrl() {
     + getProjectId() + '/databases/(default)/documents';
 }
 
-// ── Obtener token de acceso ───────────────────────────────
+// ── Obtener token de acceso (cacheado ~55 min) ────────────
 function getFirebaseToken() {
+  var cache  = CacheService.getScriptCache();
+  var cached = cache.get('FIREBASE_TOKEN');
+  if (cached) return cached;
+
   var props       = PropertiesService.getScriptProperties();
   var clientEmail = props.getProperty('FIREBASE_CLIENT_EMAIL');
   var privateKey  = props.getProperty('FIREBASE_PRIVATE_KEY').replace(/\\n/g, '\n');
@@ -39,7 +43,28 @@ function getFirebaseToken() {
     payload    : 'grant_type=urn:ietf:params:oauth:grant-type:jwt-bearer&assertion=' + jwt
   });
 
-  return JSON.parse(response.getContentText()).access_token;
+  var token = JSON.parse(response.getContentText()).access_token;
+  cache.put('FIREBASE_TOKEN', token, 3300);
+  return token;
+}
+
+// ── Petición a Firestore con validación de errores ────────
+function fsFetch(url, opciones) {
+  opciones = opciones || {};
+  opciones.headers = { Authorization: 'Bearer ' + getFirebaseToken() };
+  opciones.muteHttpExceptions = true;
+  var response = UrlFetchApp.fetch(url, opciones);
+  var codigo   = response.getResponseCode();
+  if (codigo >= 400) {
+    throw new Error('Firestore ' + codigo + ': ' + response.getContentText());
+  }
+  return JSON.parse(response.getContentText());
+}
+
+function fsDocToObj(doc) {
+  var obj = fromFirestore(doc.fields);
+  obj.id  = doc.name.split('/').pop();
+  return obj;
 }
 
 // ── Convertir objeto JS → formato Firestore ───────────────
@@ -94,156 +119,102 @@ function fromFirestore(fields) {
 
 // ── CRUD genérico ─────────────────────────────────────────
 function fsGet(coleccion, id) {
-  var token    = getFirebaseToken();
   var url      = getFirestoreBaseUrl() + '/' + coleccion + '/' + id;
   var response = UrlFetchApp.fetch(url, {
-    headers            : { Authorization: 'Bearer ' + token },
+    headers            : { Authorization: 'Bearer ' + getFirebaseToken() },
     muteHttpExceptions : true
   });
+  if (response.getResponseCode() === 404) return null;
+  if (response.getResponseCode() >= 400) {
+    throw new Error('Firestore ' + response.getResponseCode() + ': ' + response.getContentText());
+  }
   var doc = JSON.parse(response.getContentText());
-  if (!doc.fields) return null;
-var obj   = fromFirestore(doc.fields);
-var parts = doc.name.split('/');
-obj.id    = parts[parts.length - 1];
-return obj;
+  return doc.fields ? fsDocToObj(doc) : null;
 }
 
 function fsGetAll(coleccion) {
-  var token    = getFirebaseToken();
-  var url      = getFirestoreBaseUrl() + '/' + coleccion;
-  var response = UrlFetchApp.fetch(url, {
-    headers            : { Authorization: 'Bearer ' + token },
-    muteHttpExceptions : true
-  });
-  var data = JSON.parse(response.getContentText());
-  if (!data.documents) return [];
-  return data.documents.map(function(doc) {
-    var obj   = fromFirestore(doc.fields);
-    var parts = doc.name.split('/');
-    obj.id    = parts[parts.length - 1];
-    return obj;
-  });
+  var resultado = [];
+  var pageToken = '';
+  do {
+    var url  = getFirestoreBaseUrl() + '/' + coleccion + '?pageSize=300'
+             + (pageToken ? '&pageToken=' + encodeURIComponent(pageToken) : '');
+    var data = fsFetch(url);
+    (data.documents || []).forEach(function(doc) {
+      resultado.push(fsDocToObj(doc));
+    });
+    pageToken = data.nextPageToken || '';
+  } while (pageToken);
+  return resultado;
 }
 
 function fsCreate(coleccion, datos) {
-  var id    = Utilities.getUuid();
-  var token    = getFirebaseToken();
-  var url      = getFirestoreBaseUrl() + '/' + coleccion + '/' + id;
-  UrlFetchApp.fetch(url, {
-    method             : 'patch',
-    contentType        : 'application/json',
-    headers            : { Authorization: 'Bearer ' + token },
-    payload            : JSON.stringify({ fields: toFirestore(datos) }),
-    muteHttpExceptions : true
+  var id  = Utilities.getUuid();
+  var url = getFirestoreBaseUrl() + '/' + coleccion + '/' + id;
+  fsFetch(url, {
+    method      : 'patch',
+    contentType : 'application/json',
+    payload     : JSON.stringify({ fields: toFirestore(datos) })
   });
   return id;
 }
 
 function fsUpdate(coleccion, id, datos) {
-  var token  = getFirebaseToken();
   var fields = toFirestore(datos);
-  var keys   = Object.keys(fields);
-  
-  // Construir updateMask para solo actualizar los campos enviados
-  var maskParams = keys.map(function(k) {
+
+  // updateMask: solo se actualizan los campos enviados
+  var maskParams = Object.keys(fields).map(function(k) {
     return 'updateMask.fieldPaths=' + encodeURIComponent(k);
   }).join('&');
 
   var url = getFirestoreBaseUrl() + '/' + coleccion + '/' + id + '?' + maskParams;
-
-  UrlFetchApp.fetch(url, {
-    method             : 'patch',
-    contentType        : 'application/json',
-    headers            : { Authorization: 'Bearer ' + token },
-    payload            : JSON.stringify({ fields: fields }),
-    muteHttpExceptions : true
+  fsFetch(url, {
+    method      : 'patch',
+    contentType : 'application/json',
+    payload     : JSON.stringify({ fields: fields })
   });
 }
+
 function fsDelete(coleccion, id) {
-  var token    = getFirebaseToken();
-  var url      = getFirestoreBaseUrl() + '/' + coleccion + '/' + id;
-  UrlFetchApp.fetch(url, {
-    method             : 'delete',
-    headers            : { Authorization: 'Bearer ' + token },
-    muteHttpExceptions : true
-  });
+  fsFetch(getFirestoreBaseUrl() + '/' + coleccion + '/' + id, { method: 'delete' });
+}
+
+// Escritura masiva (hasta 500 docs por lote): docs = [{ coleccion, datos }]
+function fsCreateBatch(docs) {
+  var base   = getFirestoreBaseUrl();
+  var nombre = base.replace('https://firestore.googleapis.com/v1/', '');
+  var ids    = [];
+  for (var i = 0; i < docs.length; i += 500) {
+    var writes = docs.slice(i, i + 500).map(function(d) {
+      var id = Utilities.getUuid();
+      ids.push(id);
+      return { update: { name: nombre + '/' + d.coleccion + '/' + id, fields: toFirestore(d.datos) } };
+    });
+    fsFetch(base + ':commit', {
+      method      : 'post',
+      contentType : 'application/json',
+      payload     : JSON.stringify({ writes: writes })
+    });
+  }
+  return ids;
 }
 
 function fsQuery(coleccion, campo, operador, valor) {
-  var token    = getFirebaseToken();
-  var url      = getFirestoreBaseUrl() + '/' + coleccion + '/' + id;
-
   var tipoValor = typeof valor === 'boolean' ? { booleanValue: valor }
                 : typeof valor === 'number'  ? { doubleValue: valor }
                 : { stringValue: String(valor) };
 
-  var body = {
-    structuredQuery: {
-      from  : [{ collectionId: coleccion }],
-      where : {
-        fieldFilter: {
-          field : { fieldPath: campo },
-          op    : operador,
-          value : tipoValor
-        }
+  var results = fsFetch(getFirestoreBaseUrl() + ':runQuery', {
+    method      : 'post',
+    contentType : 'application/json',
+    payload     : JSON.stringify({
+      structuredQuery: {
+        from  : [{ collectionId: coleccion }],
+        where : { fieldFilter: { field: { fieldPath: campo }, op: operador, value: tipoValor } }
       }
-    }
-  };
-
-  var response = UrlFetchApp.fetch(url, {
-    method             : 'post',
-    contentType        : 'application/json',
-    headers            : { Authorization: 'Bearer ' + token },
-    payload            : JSON.stringify(body),
-    muteHttpExceptions : true
+    })
   });
-
-  var results = JSON.parse(response.getContentText());
-  return results
-    .filter(function(r) { return r.document; })
-    .map(function(r) {
-      var obj = fromFirestore(r.document.fields);
-      obj.id  = r.document.name.split('/').pop();
-      return obj;
-    });
-}
-function fsQuery(coleccion, campo, operador, valor) {
-  var token = getFirebaseToken();
-  var url   = getFirestoreBaseUrl() + ':runQuery';
-
-  var tipoValor = typeof valor === 'boolean' ? { booleanValue: valor }
-                : typeof valor === 'number'  ? { doubleValue: valor }
-                : { stringValue: String(valor) };
-
-  var body = {
-    structuredQuery: {
-      from  : [{ collectionId: coleccion }],
-      where : {
-        fieldFilter: {
-          field : { fieldPath: campo },
-          op    : operador,
-          value : tipoValor
-        }
-      }
-    }
-  };
-
-  var response = UrlFetchApp.fetch(url, {
-    method             : 'post',
-    contentType        : 'application/json',
-    headers            : { Authorization: 'Bearer ' + token },
-    payload            : JSON.stringify(body),
-    muteHttpExceptions : true
-  });
-
-  var results = JSON.parse(response.getContentText());
 
   return results
     .filter(function(r) { return r.document; })
-    .map(function(r) {
-      var obj   = fromFirestore(r.document.fields);
-      var parts = r.document.name.split('/');
-      obj.id    = parts[parts.length - 1];
-      return obj;
-    });
+    .map(function(r) { return fsDocToObj(r.document); });
 }

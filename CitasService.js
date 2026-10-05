@@ -46,40 +46,31 @@ function obtenerCitas(filtroEstado, pagina, porPagina) {
   var inicio = (pagina - 1) * porPagina;
   var slice  = citas.slice(inicio, inicio + porPagina);
 
-  var resultado = slice.map(function(c) {
-    var cliente = null, empleado = null, servicio = null;
-    for (var i = 0; i < clientes.length;  i++) { if (clientes[i].id  === c.id_cliente)  { cliente  = clientes[i];  break; } }
-    for (var j = 0; j < empleados.length; j++) { if (empleados[j].id === c.id_empleado) { empleado = empleados[j]; break; } }
-    for (var k = 0; k < servicios.length; k++) { if (servicios[k].id === c.id_servicio) { servicio = servicios[k]; break; } }
+  var porId = function(lista) {
+    var m = {};
+    lista.forEach(function(x) { m[x.id] = x; });
+    return m;
+  };
+  var mapClientes  = porId(clientes);
+  var mapEmpleados = porId(empleados);
+  var mapServicios = porId(servicios);
+  var mapProductos = porId(productos);
 
-    // Cruzar productos de la cita
-    var prodsCita = [];
-    if (c.productos && c.productos.length > 0) {
-      prodsCita = c.productos.map(function(cp) {
-        var prod = null;
-        for (var p = 0; p < productos.length; p++) {
-          if (productos[p].id === cp.id_producto) { prod = productos[p]; break; }
-        }
-return {
-  ID_Cita         : c.id            || c.ID_Cita,
-  ID_Cliente      : c.id_cliente    || c.ID_Cliente,
-  ID_Empleado     : c.id_empleado   || c.ID_Empleado,
-  ID_Servicio     : c.id_servicio   || c.ID_Servicio,
-  Fecha           : _serializarFecha(c.fecha || c.Fecha),
-  Hora            : _serializarHora(c.hora   || c.Hora),
-  Estado          : c.estado        || c.Estado        || '',
-  Forma_pago      : c.forma_pago    || c.Forma_pago    || '',
-  Total           : c.total         || c.Total         || 0,
-  Notas           : c.notas         || c.Notas         || '',
-  ID_Agenda       : c.id_agenda     || c.ID_Agenda     || '',
-  Nombre_Cliente  : cliente  ? (cliente.nombre_cliente  || cliente.Nombre_Cliente)  : '',
-  Telefono        : cliente  ? (cliente.telefono        || cliente.Telefono)        : '',
-  Nombre_Empleado : empleado ? (empleado.nombre_empleado|| empleado.Nombre_Empleado): '',
-  Nombre_Servicio : servicio ? (servicio.nombre         || servicio.Nombre)         : '',
-  Productos       : prodsCita
-};
-      });
-    }
+  var resultado = slice.map(function(c) {
+    var cliente  = mapClientes[c.id_cliente]   || null;
+    var empleado = mapEmpleados[c.id_empleado] || null;
+    var servicio = mapServicios[c.id_servicio] || null;
+
+    var prodsCita = (c.productos || []).map(function(cp) {
+      var prod = mapProductos[cp.id_producto] || null;
+      return {
+        ID_Producto     : cp.id_producto,
+        Cantidad        : cp.cantidad,
+        Precio_unitario : cp.precio_unitario,
+        Subtotal        : cp.subtotal,
+        Titulo          : prod ? prod.titulo : ''
+      };
+    });
 
     return {
       ID_Cita         : c.id,
@@ -113,8 +104,26 @@ return {
 //  CREAR CITA
 // ══════════════════════════════════════════════════════════
 function crearCitaPublica(nombreCliente, telefono, idEmpleado, idServicio, idAgenda, fecha, hora, formaPago, productos) {
+  var lock = LockService.getScriptLock();
+  lock.waitLock(15000);
+  try {
+    return _crearCitaPublica(nombreCliente, telefono, idEmpleado, idServicio, idAgenda, fecha, hora, formaPago, productos);
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+function _crearCitaPublica(nombreCliente, telefono, idEmpleado, idServicio, idAgenda, fecha, hora, formaPago, productos) {
+  // 0. Verificar que el horario siga disponible
+  if (idAgenda) {
+    var slot = fsGet('agenda', idAgenda);
+    if (!slot || slot.disponible !== true) {
+      throw new Error('El horario seleccionado ya no está disponible. Elige otro.');
+    }
+  }
+
   // 1. Buscar o crear cliente
-  var idCliente = agregarCliente(nombreCliente, telefono, '');
+  var idCliente  = agregarCliente(nombreCliente, telefono, '');
   var numeroCita = getNextCitaNumero();
 
   // 2. Calcular total

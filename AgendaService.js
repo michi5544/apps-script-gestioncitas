@@ -27,6 +27,7 @@ function sumarMinutos(hora, minutos) {
 function generarAgenda(idEmpleado, fechaInicio, fechaFin, horaInicioDia, horaFinDia, duracionMin) {
   var fechaActual = fechaInicio;
   var idEmp       = String(idEmpleado); // forzar string
+  var docs        = [];
 
   while (fechaActual <= fechaFin) {
     var horaActual = horaInicioDia;
@@ -34,44 +35,46 @@ function generarAgenda(idEmpleado, fechaInicio, fechaFin, horaInicioDia, horaFin
       var horaFinSlot = sumarMinutos(horaActual, duracionMin);
       if (horaFinSlot > horaFinDia) break;
 
-      fsCreate('agenda', {
-        id_empleado : idEmp,
-        fecha       : String(fechaActual),
-        hora_inicio : String(horaActual),
-        hora_fin    : String(horaFinSlot),
-        disponible  : true
+      docs.push({
+        coleccion : 'agenda',
+        datos     : {
+          id_empleado : idEmp,
+          fecha       : String(fechaActual),
+          hora_inicio : String(horaActual),
+          hora_fin    : String(horaFinSlot),
+          disponible  : true
+        }
       });
 
       horaActual = horaFinSlot;
     }
     fechaActual = sumarDias(fechaActual, 1);
   }
+
+  if (docs.length > 0) fsCreateBatch(docs);
 }
 
 // ══════════════════════════════════════════════════════════
 //  CONSULTAR DISPONIBILIDAD
 // ══════════════════════════════════════════════════════════
 function obtenerDisponibilidad(idEmpleado, fecha) {
-  var todos = fsGetAll('agenda');
-  
-  Logger.log('Total agenda: ' + todos.length);
-  Logger.log('Buscando idEmpleado: ' + idEmpleado + ' fecha: ' + fecha);
-  if (todos.length > 0) Logger.log('Ejemplo doc: ' + JSON.stringify(todos[0]));
-
-  return todos.filter(function(a) {
-    return String(a.id_empleado) === String(idEmpleado)
-        && String(a.fecha)       === String(fecha)
-        && a.disponible          === true;
-  }).map(function(a) {
-    return {
-      ID_Agenda   : a.id,
-      ID_Empleado : a.id_empleado,
-      Fecha       : a.fecha,
-      Hora_inicio : a.hora_inicio,
-      Hora_fin    : a.hora_fin,
-      Disponible  : a.disponible
-    };
-  });
+  return fsQuery('agenda', 'id_empleado', 'EQUAL', String(idEmpleado))
+    .filter(function(a) {
+      return String(a.fecha) === String(fecha) && a.disponible === true;
+    })
+    .sort(function(a, b) {
+      return String(a.hora_inicio) < String(b.hora_inicio) ? -1 : 1;
+    })
+    .map(function(a) {
+      return {
+        ID_Agenda   : a.id,
+        ID_Empleado : a.id_empleado,
+        Fecha       : a.fecha,
+        Hora_inicio : a.hora_inicio,
+        Hora_fin    : a.hora_fin,
+        Disponible  : a.disponible
+      };
+    });
 }
 
 // ══════════════════════════════════════════════════════════

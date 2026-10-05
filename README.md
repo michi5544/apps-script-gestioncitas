@@ -6,7 +6,7 @@ Los datos viven en Firebase Firestore (acceso REST con cuenta de servicio).
 ## Estructura
 - `Index.html` + `JavaScriptPublic.html` + `StylesIndex.html`: página pública de reservas.
 - `Admin.html` + `Admin*.html`: panel de administración (`?page=admin`).
-- `Código.js`: routing, utilidades, caché, reportes.
+- `Codigo.js`: routing, utilidades, caché, reportes.
 - `FirebaseService.js`: autenticación JWT y CRUD genérico de Firestore.
 - `DataService.js`, `CitasService.js`, `AgendaService.js`: lógica de negocio.
 

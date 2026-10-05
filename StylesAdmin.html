@@ -1,0 +1,288 @@
+<style>
+  /* ══ Layout base ══ */
+  body { padding-bottom: 110px; }
+
+  .admin-container {
+    max-width: 600px;
+    margin: 0 auto;
+    padding: 16px;
+  }
+
+  .vista        { display: none; }
+  .vista.activa { display: block; }
+
+  /* ══ Barra de navegación inferior ══ */
+  .bottom-nav {
+    position: fixed;
+    bottom: 0; left: 0; right: 0;
+    background: white;
+    border-top: 1px solid #e5e5e5;
+    box-shadow: 0 -2px 12px rgba(0,0,0,0.06);
+    z-index: 100;
+  }
+
+  /* — Fila de módulos — */
+  .nav-modules {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 14px 6px;
+    overflow: hidden;
+    transition: max-height 0.25s ease, padding 0.25s ease, opacity 0.2s ease;
+    max-height: 70px;
+    opacity: 1;
+  }
+
+  .nav-modules.oculto {
+    max-height: 0;
+    padding-top: 0;
+    padding-bottom: 0;
+    opacity: 0;
+    pointer-events: none;
+  }
+
+  .nav-modules-label {
+    font-size: 11px;
+    color: #aaa;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+
+  .modules-scroll {
+    display: flex;
+    gap: 8px;
+    overflow-x: auto;
+    scrollbar-width: none;
+    -webkit-overflow-scrolling: touch;
+    flex: 1;
+  }
+  .modules-scroll::-webkit-scrollbar { display: none; }
+
+  .mod-chip {
+    flex-shrink: 0;
+    width: auto;
+    padding: 7px 14px;
+    border-radius: 20px;
+    border: 1px solid #ddd;
+    background: white;
+    color: #555;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: all 0.15s ease;
+    margin-top: 0;
+  }
+  .mod-chip:hover  { border-color: #4a90d9; color: #4a90d9; }
+  .mod-chip.activo { background: #eaf2fb; border-color: #4a90d9; color: #4a90d9; }
+
+  /* — Divisor — */
+  .nav-divider {
+    height: 1px;
+    background: #f0f0f0;
+    margin: 0 14px;
+  }
+
+  /* — Fila primaria — */
+  .nav-primary {
+    display: flex;
+    justify-content: space-around;
+    padding: 6px 0 10px;
+  }
+
+  .nav-btn {
+    background: none;
+    border: none;
+    font-size: 12px;
+    color: #999;
+    padding: 8px 12px;
+    min-width: 72px;
+    width: auto;
+    cursor: pointer;
+    text-align: center;
+    border-radius: 10px;
+    line-height: 1.5;
+    transition: background 0.15s, color 0.15s;
+    margin-top: 0;
+  }
+  .nav-btn span       { display: block; }
+  .nav-btn:hover      { background: #f5f5f5; }
+  .nav-btn.activo     { color: #4a90d9; font-weight: 600; background: #eaf2fb; }
+
+  /* Ícono del nav — reemplaza los style inline del HTML */
+  .nav-icono {
+    font-size: 22px;
+    line-height: 1;
+    display: block;
+    margin-bottom: 2px;
+  }
+
+  /* Botón toggle iluminado cuando módulo activo */
+  .nav-btn--toggle.modulo-activo { color: #4a90d9; background: #eaf2fb; }
+
+  /* ══ Tarjetas genéricas ══ */
+  .card {
+    background: white;
+    border: 1px solid #eee;
+    border-radius: 10px;
+    padding: 12px;
+    margin-bottom: 10px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .card-info             { flex: 1; }
+  .card-info strong      { display: block; font-size: 15px; }
+  .card-info span        { font-size: 13px; color: #777; }
+  .card-actions button   { width: auto; padding: 6px 10px; margin-left: 4px; font-size: 13px; }
+
+  .btn-editar   { background: #f0ad4e; color: white; }
+  .btn-eliminar { background: #d9534f; color: white; }
+
+  .form-card {
+    background: white;
+    border-radius: 10px;
+    padding: 16px;
+    margin-bottom: 16px;
+    border: 1px solid #eee;
+  }
+
+  .titulo-vista { font-size: 20px; font-weight: 600; margin-bottom: 12px; color: #222; }
+
+  /* ══ Tarjetas de cita ══ */
+  .card-cita {
+    background: white;
+    border: 1px solid #eee;
+    border-radius: 12px;
+    padding: 14px 16px;
+    margin-bottom: 12px;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.04);
+  }
+
+  .cita-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 8px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid #f0f0f0;
+  }
+
+  .cita-cliente { font-size: 16px; font-weight: 600; color: #222; }
+
+  .cita-estado {
+    font-size: 11px;
+    font-weight: 700;
+    padding: 3px 10px;
+    border-radius: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+  }
+
+  .estado-pendiente  { background: #fff3cd; color: #856404; }
+  .estado-confirmada { background: #d1ecf1; color: #0c5460; }
+  .estado-completada { background: #d4edda; color: #155724; }
+  .estado-cancelada  { background: #f8d7da; color: #721c24; }
+
+  .cita-detalle {
+    display: flex;
+    justify-content: space-between;
+    padding: 4px 0;
+    font-size: 14px;
+    color: #555;
+  }
+  .cita-detalle .etiqueta { font-weight: 600; color: #bbb; }
+  .cita-total             { font-weight: 700; color: #222; font-size: 15px; }
+
+  .cita-acciones {
+    display: flex;
+    gap: 8px;
+    margin-top: 10px;
+    padding-top: 10px;
+    border-top: 1px solid #f0f0f0;
+  }
+  .cita-acciones button {
+    flex: 1;
+    width: auto;
+    padding: 8px;
+    font-size: 13px;
+    border-radius: 8px;
+    margin-top: 0;
+  }
+
+  /* ══ Chips de filtro de citas ══ */
+  .filtro-citas {
+    display: flex;
+    gap: 8px;
+    overflow-x: auto;
+    padding-bottom: 12px;
+    margin-bottom: 4px;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+  }
+  .filtro-citas::-webkit-scrollbar { display: none; }
+
+  .filtro-chip {
+    flex-shrink: 0;
+    width: auto;
+    padding: 7px 16px;
+    border-radius: 20px;
+    border: 1px solid #ddd;
+    background: white;
+    color: #666;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    margin-top: 0;
+  }
+  .filtro-chip:hover  { border-color: #4a90d9; }
+  .filtro-chip.activo { background: #4a90d9; border-color: #4a90d9; color: white; }
+
+  /* ══ Skeleton loader ══ */
+  .skeleton-wrapper { display: flex; flex-direction: column; gap: 12px; }
+  .skeleton-card {
+    height: 140px;
+    border-radius: 12px;
+    background: linear-gradient(90deg, #f0f0f0 25%, #e8e8e8 50%, #f0f0f0 75%);
+    background-size: 200% 100%;
+    animation: shimmer 1.4s infinite;
+  }
+  @keyframes shimmer {
+    0%   { background-position: 200% 0; }
+    100% { background-position: -200% 0; }
+  }
+
+  /* ══ Toolbar de citas ══ */
+  .citas-toolbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 6px;
+  }
+
+  .btn-refresh {
+    background: transparent;
+    border: 1px solid #ccc;
+    border-radius: 20px;
+    padding: 5px 14px;
+    font-size: 13px;
+    cursor: pointer;
+    transition: background 0.2s;
+    white-space: nowrap;
+    margin-top: 0;
+  }
+  .btn-refresh:hover    { background: #f5f5f5; }
+  .btn-refresh:disabled { opacity: .5; cursor: not-allowed; }
+
+  .citas-meta {
+    font-size: 12px;
+    color: #999;
+    margin-bottom: 8px;
+    min-height: 18px;
+  }
+</style>

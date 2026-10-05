@@ -1,0 +1,361 @@
+<style>
+  /* ══ Wrapper ══ */
+  .reserva-wrap {
+    max-width: 480px;
+    margin: 0 auto;
+    padding: 20px 16px 40px;
+  }
+
+  /* ══ Header ══ */
+  .reserva-header { margin-bottom: 20px; text-align: center; }
+  .reserva-logo   { font-size: 36px; margin-bottom: 8px; }
+  .reserva-titulo { font-size: 22px; font-weight: 700; color: #111; margin: 0 0 4px; }
+  .reserva-sub    { font-size: 13px; color: #999; margin: 0; }
+
+  /* ══ Barra de progreso ══ */
+  .pasos-barra {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 0 20px;
+    padding: 0 8px;
+  }
+
+  .paso-dot {
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    background: #e0e0e0;
+    color: #aaa;
+    font-size: 13px;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    transition: background 0.2s, color 0.2s;
+  }
+
+  .paso-dot.activo  { background: #4a90d9; color: white; }
+  .paso-dot.completo { background: #5cb85c; color: white; }
+
+  .paso-linea {
+    flex: 1;
+    height: 2px;
+    background: #e0e0e0;
+    transition: background 0.2s;
+  }
+
+  /* ══ Tarjeta de paso ══ */
+  .paso-card {
+    background: white;
+    border: 1px solid #eee;
+    border-radius: 12px;
+    padding: 14px 16px;
+    margin-bottom: 10px;
+  }
+
+  .paso-head {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 14px;
+  }
+
+  .paso-num {
+    width: 26px;
+    height: 26px;
+    border-radius: 50%;
+    background: #4a90d9;
+    color: white;
+    font-size: 12px;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+  }
+
+  .paso-num--opt   { background: #eaf2fb; color: #4a90d9; }
+  .paso-label      { font-size: 14px; font-weight: 700; color: #222; }
+  .paso-label--opt { color: #4a90d9; }
+  .paso-opcional   { border-style: dashed; }
+
+  /* ══ Campos ══ */
+  .campo {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    margin-bottom: 10px;
+  }
+  .campo:last-child { margin-bottom: 0; }
+
+  .campo-row {
+    display: flex;
+    gap: 10px;
+  }
+  .campo-row .campo { flex: 1; }
+
+  .campo-label {
+    font-size: 11px;
+    font-weight: 700;
+    color: #bbb;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    margin: 0;
+  }
+
+  .paso-card input,
+  .paso-card select {
+    margin-top: 0;
+    font-size: 14px;
+    border-radius: 8px;
+    border: 1px solid #e0e0e0;
+    padding: 9px 12px;
+    background: #fafafa;
+    width: 100%;
+    box-sizing: border-box;
+  }
+
+  .paso-card input:focus,
+  .paso-card select:focus {
+    outline: none;
+    border-color: #4a90d9;
+    background: white;
+  }
+
+  /* ══ Pago chips ══ */
+  .pago-grid {
+    display: flex;
+    gap: 8px;
+  }
+
+  .pago-chip {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    border: 1.5px solid #ddd;
+    border-radius: 10px;
+    padding: 10px 6px;
+    font-size: 13px;
+    font-weight: 500;
+    color: #666;
+    background: white;
+    cursor: pointer;
+    margin: 0;
+    width: auto;
+    transition: all 0.15s;
+  }
+
+  .pago-icono { font-size: 20px; line-height: 1; }
+
+  .pago-chip:hover  { border-color: #4a90d9; color: #4a90d9; }
+  .pago-chip.activo { border-color: #4a90d9; background: #eaf2fb; color: #1a5fa8; font-weight: 700; }
+
+  /* ══ Productos con stepper ══ */
+  .prod-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 0;
+    border-bottom: 1px solid #f5f5f5;
+  }
+  .prod-item:last-child { border: none; padding-bottom: 0; }
+
+  .prod-nombre { font-size: 14px; color: #444; }
+  .prod-precio { font-size: 12px; color: #aaa; }
+
+  .prod-stepper {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .stepper-btn {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    border: 1px solid #ddd;
+    background: white;
+    font-size: 16px;
+    color: #555;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0;
+    padding: 0;
+    line-height: 1;
+    flex-shrink: 0;
+  }
+
+  .stepper-btn:hover { border-color: #4a90d9; color: #4a90d9; }
+  .stepper-val { font-size: 15px; font-weight: 700; color: #222; min-width: 18px; text-align: center; }
+
+  /* ══ Resumen ══ */
+  .resumen-card {
+    background: white;
+    border: 1px solid #eee;
+    border-radius: 12px;
+    padding: 14px 16px;
+    margin-bottom: 10px;
+  }
+
+  .resumen-titulo {
+    font-size: 11px;
+    font-weight: 700;
+    color: #bbb;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    margin-bottom: 10px;
+  }
+
+  .resumen-linea {
+    display: flex;
+    justify-content: space-between;
+    font-size: 13px;
+    color: #666;
+    padding: 5px 0;
+    border-bottom: 1px solid #f5f5f5;
+  }
+
+  .resumen-total-row {
+    display: flex;
+    justify-content: space-between;
+    font-size: 15px;
+    font-weight: 700;
+    color: #111;
+    padding-top: 10px;
+    margin-top: 4px;
+  }
+
+  /* ══ Botón confirmar ══ */
+  .btn-confirmar {
+    width: 100%;
+    padding: 14px;
+    background: #4a90d9;
+    color: white;
+    border: none;
+    border-radius: 10px;
+    font-size: 15px;
+    font-weight: 700;
+    cursor: pointer;
+    margin: 0;
+    transition: background 0.15s;
+  }
+
+  .btn-confirmar:hover    { background: #3a78b5; }
+  .btn-confirmar:disabled { background: #9dbfe8; cursor: not-allowed; }
+
+  /* ══ Nota de pie ══ */
+  .reserva-footer-note {
+    text-align: center;
+    font-size: 12px;
+    color: #bbb;
+    margin-top: 12px;
+  }
+
+  /* ══ Mensaje ══ */
+  #mensaje {
+    margin-bottom: 10px;
+    padding: 10px 14px;
+    border-radius: 8px;
+    text-align: center;
+    font-size: 14px;
+    display: none;
+  }
+  #mensaje.exito { display: block; background: #d4edda; color: #155724; }
+  #mensaje.error { display: block; background: #f8d7da; color: #721c24; }
+
+  /* ══ Card de confirmación ══ */
+  .confirmacion-wrap {
+    max-width: 480px;
+    margin: 0 auto;
+    padding: 32px 16px 40px;
+  }
+  .confirmacion-wrap.oculto { display: none; }
+
+  .confirmacion-card {
+    background: white;
+    border-radius: 16px;
+    padding: 28px 24px;
+    text-align: center;
+    box-shadow: 0 2px 12px rgba(0,0,0,0.06);
+  }
+
+  .confirmacion-check-wrap {
+    width: 56px;
+    height: 56px;
+    border-radius: 50%;
+    background: #d4edda;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto 16px;
+  }
+
+  .confirmacion-check {
+    font-size: 28px;
+    color: #155724;
+    font-weight: 700;
+  }
+
+  .confirmacion-titulo {
+    font-size: 20px;
+    font-weight: 700;
+    color: #222;
+    margin: 0 0 4px;
+  }
+
+  .confirmacion-sub {
+    font-size: 13px;
+    color: #999;
+    margin: 0 0 20px;
+  }
+
+  .confirmacion-numero {
+    background: #eaf2fb;
+    border-radius: 10px;
+    padding: 10px 16px;
+    margin-bottom: 20px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  .confirmacion-numero-label { font-size: 12px; color: #1a5fa8; font-weight: 600; }
+  .confirmacion-numero-valor { font-size: 16px; font-weight: 700; color: #1a5fa8; }
+
+  .confirmacion-detalle {
+    text-align: left;
+    margin-bottom: 16px;
+  }
+
+  .confirmacion-fila {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    padding: 10px 0;
+    border-bottom: 1px solid #f5f5f5;
+  }
+  .confirmacion-fila:last-child { border-bottom: none; }
+
+  .confirmacion-fila-icono  { font-size: 18px; flex-shrink: 0; width: 24px; text-align: center; }
+  .confirmacion-fila-label  { font-size: 11px; color: #bbb; text-transform: uppercase; letter-spacing: 0.04em; font-weight: 700; }
+  .confirmacion-fila-valor  { font-size: 14px; color: #333; font-weight: 600; margin-top: 2px; }
+
+  .confirmacion-total {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: #d4edda;
+    border-radius: 10px;
+    padding: 12px 16px;
+    margin-bottom: 20px;
+    font-size: 15px;
+    font-weight: 700;
+    color: #155724;
+  }
+</style>

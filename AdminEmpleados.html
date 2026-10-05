@@ -1,0 +1,219 @@
+<style>
+  .empleado-avatar {
+    width: 38px;
+    height: 38px;
+    border-radius: 50%;
+    background: #eaf2fb;
+    color: #1a5fa8;
+    font-size: 13px;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+  }
+</style>
+
+<div class="titulo-vista">Empleados</div>
+
+<div class="form-card" id="form-empleado-card">
+  <input type="hidden" id="empleado-id">
+
+  <div class="form-card-header">
+    <span id="form-empleado-titulo">Nuevo empleado</span>
+    <button class="btn-form-cancelar" id="btn-cancelar-empleado"
+            onclick="limpiarFormEmpleado()" style="display:none;">
+      ✕ Cancelar
+    </button>
+  </div>
+
+  <div class="form-grid">
+    <div class="form-field full">
+      <label class="field-label">Nombre</label>
+      <input type="text" id="empleado-nombre" placeholder="Nombre completo">
+    </div>
+    <div class="form-field">
+      <label class="field-label">Especialidad</label>
+      <input type="text" id="empleado-especialidad" placeholder="Ej: Colorista">
+    </div>
+    <div class="form-field">
+      <label class="field-label">Teléfono</label>
+      <input type="tel" id="empleado-telefono" placeholder="+503 0000-0000">
+    </div>
+  </div>
+
+  <div id="form-empleado-feedback" class="form-feedback oculto"></div>
+
+  <button class="btn-guardar" id="btn-guardar-empleado" onclick="guardarEmpleado()">
+    Guardar empleado
+  </button>
+</div>
+
+<div id="lista-empleados"></div>
+
+<script>
+  function _escEmp(str) {
+    return String(str == null ? '' : str)
+      .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+
+  function _inicialesEmp(nombre) {
+    var partes    = String(nombre || '?').split(' ').slice(0, 2);
+    var iniciales = '';
+    for (var i = 0; i < partes.length; i++) {
+      if (partes[i].length > 0) iniciales += partes[i][0];
+    }
+    return iniciales.toUpperCase() || '?';
+  }
+
+  function cargarEmpleadosAdmin() {
+    google.script.run
+      .withSuccessHandler(renderEmpleados)
+      .withFailureHandler(function(err) {
+        document.getElementById('lista-empleados').innerHTML =
+          '<p style="color:red;text-align:center;">Error al cargar: ' + (err.message || err) + '</p>';
+      })
+      .obtenerEmpleados();
+  }
+
+function renderEmpleados(empleados) {
+  var div = document.getElementById('lista-empleados');
+  div.innerHTML = '';
+
+  if (!empleados || empleados.length === 0) {
+    div.innerHTML = '<p style="text-align:center;color:#aaa;padding:24px 0;">Sin empleados registrados</p>';
+    return;
+  }
+
+  var frag = document.createDocumentFragment();
+
+  for (var i = 0; i < empleados.length; i++) {
+    var e = empleados[i];
+
+    // Normalizar campos Firestore (snake_case) y Sheets (PascalCase)
+    var id           = e.id              || e.ID_Empleado      || '';
+    var nombre       = e.nombre_empleado || e.Nombre_Empleado  || '';
+    var especialidad = e.especialidad    || e.Especialidad     || '';
+    var telefono     = e.telefono        || e.Telefono         || '';
+
+    var card = document.createElement('div');
+    card.className = 'servicio-card';
+    card.setAttribute('data-id',           id);
+    card.setAttribute('data-nombre',       nombre);
+    card.setAttribute('data-especialidad', especialidad);
+    card.setAttribute('data-telefono',     telefono);
+
+    card.innerHTML = '<div class="servicio-top">'
+      + '<div style="display:flex;align-items:center;gap:10px;">'
+      +   '<div class="empleado-avatar">' + _inicialesEmp(nombre) + '</div>'
+      +   '<div>'
+      +     '<div class="servicio-nombre">' + _escEmp(nombre) + '</div>'
+      +     (especialidad ? '<div class="servicio-desc">' + _escEmp(especialidad) + '</div>' : '')
+      +   '</div>'
+      + '</div>'
+      + '<div class="servicio-acciones">'
+      +   '<button style="background:#fff7e6;" title="Editar">✏️</button>'
+      +   '<button style="background:#fdf0f0;" title="Eliminar">🗑️</button>'
+      + '</div>'
+      + '</div>'
+      + (telefono
+          ? '<div class="servicio-chips"><span class="chip-dato">📞 ' + _escEmp(telefono) + '</span></div>'
+          : '');
+
+    (function(c) {
+      c.querySelectorAll('button')[0].addEventListener('click', function() {
+        editarEmpleadoForm({
+          ID_Empleado     : c.getAttribute('data-id'),
+          Nombre_Empleado : c.getAttribute('data-nombre'),
+          Especialidad    : c.getAttribute('data-especialidad'),
+          Telefono        : c.getAttribute('data-telefono')
+        });
+      });
+      c.querySelectorAll('button')[1].addEventListener('click', function() {
+        eliminarEmpleadoAdmin(c.getAttribute('data-id'));
+      });
+    })(card);
+
+    frag.appendChild(card);
+  }
+
+  div.appendChild(frag);
+}
+
+  function setFeedbackEmp(tipo, texto) {
+    var el = document.getElementById('form-empleado-feedback');
+    el.className   = 'form-feedback ' + tipo;
+    el.textContent = texto;
+  }
+
+  function guardarEmpleado() {
+    var id           = document.getElementById('empleado-id').value;
+    var nombre       = document.getElementById('empleado-nombre').value.trim();
+    var especialidad = document.getElementById('empleado-especialidad').value.trim();
+    var telefono     = document.getElementById('empleado-telefono').value.trim();
+
+    if (!nombre) {
+      setFeedbackEmp('error', 'El nombre es obligatorio.'); return;
+    }
+
+    var btn = document.getElementById('btn-guardar-empleado');
+    btn.disabled    = true;
+    btn.textContent = 'Guardando…';
+    setFeedbackEmp('cargando', 'Guardando, espera un momento…');
+
+    var onExito = function() {
+      btn.disabled    = false;
+      btn.textContent = 'Guardar empleado';
+      setFeedbackEmp('exito', '✓ Empleado guardado correctamente.');
+      limpiarFormEmpleado();
+      cargarEmpleadosAdmin();
+    };
+
+    var onError = function(err) {
+      btn.disabled    = false;
+      btn.textContent = 'Guardar empleado';
+      setFeedbackEmp('error', 'Error: ' + (err.message || err));
+    };
+
+    if (id) {
+      google.script.run
+        .withSuccessHandler(onExito).withFailureHandler(onError)
+        .editarEmpleado(Number(id), nombre, especialidad, telefono);
+    } else {
+      google.script.run
+        .withSuccessHandler(onExito).withFailureHandler(onError)
+        .agregarEmpleado(nombre, especialidad, telefono);
+    }
+  }
+
+  function editarEmpleadoForm(e) {
+    document.getElementById('empleado-id').value           = e.ID_Empleado      || '';
+    document.getElementById('empleado-nombre').value       = e.Nombre_Empleado  || '';
+    document.getElementById('empleado-especialidad').value = e.Especialidad     || '';
+    document.getElementById('empleado-telefono').value     = e.Telefono         || '';
+
+    document.getElementById('form-empleado-titulo').textContent    = 'Editar empleado';
+    document.getElementById('btn-cancelar-empleado').style.display = 'inline-flex';
+    setFeedbackEmp('oculto', '');
+    document.getElementById('form-empleado-card')
+            .scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+
+  function limpiarFormEmpleado() {
+    var ids = ['empleado-id', 'empleado-nombre', 'empleado-especialidad', 'empleado-telefono'];
+    for (var i = 0; i < ids.length; i++) {
+      document.getElementById(ids[i]).value = '';
+    }
+    document.getElementById('form-empleado-titulo').textContent    = 'Nuevo empleado';
+    document.getElementById('btn-cancelar-empleado').style.display = 'none';
+    setFeedbackEmp('oculto', '');
+  }
+
+  function eliminarEmpleadoAdmin(id) {
+    if (!confirm('¿Eliminar este empleado?')) return;
+    google.script.run
+      .withSuccessHandler(cargarEmpleadosAdmin)
+      .withFailureHandler(function(err) { alert('Error: ' + (err.message || err)); })
+      .eliminarEmpleado(id);
+  }
+</script>

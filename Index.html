@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <base target="_top">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <?!= include('Styles'); ?>
+  <?!= include('StylesIndex'); ?>
+</head>
+<body>
+  <div class="reserva-wrap" id="vista-formulario">
+
+    <div class="reserva-header">
+      <div class="reserva-logo">📅</div>
+      <h1 class="reserva-titulo">Reservar cita</h1>
+      <p class="reserva-sub">Completa los datos para agendar tu visita</p>
+    </div>
+
+    <div class="pasos-barra">
+      <div class="paso-dot activo" id="dot-1">1</div>
+      <div class="paso-linea"></div>
+      <div class="paso-dot" id="dot-2">2</div>
+      <div class="paso-linea"></div>
+      <div class="paso-dot" id="dot-3">3</div>
+      <div class="paso-linea"></div>
+      <div class="paso-dot" id="dot-4">4</div>
+    </div>
+
+    <div class="paso-card" id="paso-1">
+      <div class="paso-head">
+        <span class="paso-num">1</span>
+        <span class="paso-label">Tus datos</span>
+      </div>
+      <div class="campo">
+        <label class="campo-label">Nombre completo</label>
+        <input type="text" id="nombreCliente" placeholder="Tu nombre completo" required
+               oninput="actualizarProgreso()">
+      </div>
+      <div class="campo">
+        <label class="campo-label">Teléfono</label>
+        <input type="tel" id="telefono" placeholder="+503 0000-0000" required
+               oninput="actualizarProgreso()">
+      </div>
+    </div>
+
+    <div class="paso-card" id="paso-2">
+      <div class="paso-head">
+        <span class="paso-num">2</span>
+        <span class="paso-label">Servicio y profesional</span>
+      </div>
+      <div class="campo">
+        <label class="campo-label">Servicio</label>
+        <select id="servicio" required onchange="actualizarProgreso()"></select>
+      </div>
+      <div class="campo">
+        <label class="campo-label">Empleado</label>
+        <select id="empleado" required onchange="cargarHorarios(); actualizarProgreso()"></select>
+      </div>
+    </div>
+
+    <div class="paso-card" id="paso-3">
+      <div class="paso-head">
+        <span class="paso-num">3</span>
+        <span class="paso-label">Fecha y hora</span>
+      </div>
+      <div class="campo-row">
+        <div class="campo">
+          <label class="campo-label">Fecha</label>
+          <input type="date" id="fecha" required
+          placeholder="dd/mm/aaaa"
+                 onchange="cargarHorarios(); actualizarProgreso()">
+        </div>
+        <div class="campo">
+          <label class="campo-label">Hora disponible</label>
+          <select id="horario" required onchange="actualizarProgreso()">
+            <option value="">Elige empleado y fecha</option>
+          </select>
+        </div>
+      </div>
+    </div>
+
+    <div class="paso-card" id="paso-4">
+      <div class="paso-head">
+        <span class="paso-num">4</span>
+        <span class="paso-label">Forma de pago</span>
+      </div>
+      <div class="pago-grid">
+        <button type="button" class="pago-chip activo" data-pago="Efectivo"
+                onclick="seleccionarPago(this)">
+          <span class="pago-icono">💵</span>
+          <span>Efectivo</span>
+        </button>
+        <button type="button" class="pago-chip" data-pago="Tarjeta"
+                onclick="seleccionarPago(this)">
+          <span class="pago-icono">💳</span>
+          <span>Tarjeta</span>
+        </button>
+        <button type="button" class="pago-chip" data-pago="Transferencia"
+                onclick="seleccionarPago(this)">
+          <span class="pago-icono">📲</span>
+          <span>Transferencia</span>
+        </button>
+      </div>
+      <input type="hidden" id="formaPago" value="Efectivo">
+    </div>
+
+    <div class="paso-card paso-opcional">
+      <div class="paso-head">
+        <span class="paso-num paso-num--opt">+</span>
+        <span class="paso-label paso-label--opt">Productos opcionales</span>
+      </div>
+      <div id="listaProductos"></div>
+    </div>
+
+    <div class="resumen-card" id="resumen-card" style="display:none;">
+      <div class="resumen-titulo">Resumen de tu cita</div>
+      <div id="resumen-lineas"></div>
+      <div class="resumen-total-row">
+        <span>Total</span>
+        <span id="resumen-total">$0.00</span>
+      </div>
+    </div>
+
+    <div id="mensaje"></div>
+
+    <button class="btn-confirmar" id="btn-confirmar" onclick="enviarReserva()">
+      Confirmar reserva
+    </button>
+
+    <p class="reserva-footer-note">
+      🔒 Tus datos están seguros y solo se usan para gestionar tu cita
+    </p>
+
+  </div>
+
+  <div class="confirmacion-wrap oculto" id="vista-confirmacion" style="display:none;">
+    <div class="confirmacion-card">
+      <div class="confirmacion-check-wrap">
+        <div class="confirmacion-check">✓</div>
+      </div>
+      <h2 class="confirmacion-titulo">¡Cita confirmada!</h2>
+      <p class="confirmacion-sub">Te esperamos. Aquí está el resumen de tu reserva.</p>
+
+      <div class="confirmacion-numero">
+        <span class="confirmacion-numero-label">N.º de cita</span>
+        <span class="confirmacion-numero-valor" id="conf-numero">—</span>
+      </div>
+
+      <div class="confirmacion-detalle">
+        <div class="confirmacion-fila">
+          <span class="confirmacion-fila-icono">👤</span>
+          <div>
+            <div class="confirmacion-fila-label">Cliente</div>
+            <div class="confirmacion-fila-valor" id="conf-cliente">—</div>
+          </div>
+        </div>
+        <div class="confirmacion-fila">
+          <span class="confirmacion-fila-icono">✂️</span>
+          <div>
+            <div class="confirmacion-fila-label">Servicio</div>
+            <div class="confirmacion-fila-valor" id="conf-servicio">—</div>
+          </div>
+        </div>
+        <div class="confirmacion-fila">
+          <span class="confirmacion-fila-icono">💁</span>
+          <div>
+            <div class="confirmacion-fila-label">Profesional</div>
+            <div class="confirmacion-fila-valor" id="conf-empleado">—</div>
+          </div>
+        </div>
+        <div class="confirmacion-fila">
+          <span class="confirmacion-fila-icono">📅</span>
+          <div>
+            <div class="confirmacion-fila-label">Fecha y hora</div>
+            <div class="confirmacion-fila-valor" id="conf-fechahora">—</div>
+          </div>
+        </div>
+        <div class="confirmacion-fila">
+          <span class="confirmacion-fila-icono">💳</span>
+          <div>
+            <div class="confirmacion-fila-label">Forma de pago</div>
+            <div class="confirmacion-fila-valor" id="conf-pago">—</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="confirmacion-total">
+        <span>Total a pagar</span>
+        <span id="conf-total">$0.00</span>
+      </div>
+
+      <button class="btn-confirmar" id="btn-nueva-reserva" onclick="reiniciarFormulario()">
+        Agendar otra cita
+      </button>
+    </div>
+  </div>
+
+  <?!= include('JavaScriptPublic'); ?>
+</body>
+</html>

@@ -1,0 +1,176 @@
+<style>
+  .reporte-grid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-bottom: 12px;
+  }
+
+  .reporte-metrica {
+    background: #f8f9fa;
+    border: 1px solid #eee;
+    border-radius: 10px;
+    padding: 12px 14px;
+    flex: 1;
+    min-width: 130px;
+  }
+
+  .reporte-metrica-label {
+    font-size: 11px;
+    font-weight: 700;
+    color: #bbb;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    margin-bottom: 4px;
+  }
+
+  .reporte-metrica-valor {
+    font-size: 22px;
+    font-weight: 700;
+    color: #222;
+  }
+
+  .reporte-metrica.destacado {
+    flex: 100%;
+    min-width: 100%;
+    background: #eaf2fb;
+    border-color: #c5ddf4;
+  }
+  .reporte-metrica.destacado .reporte-metrica-label { color: #4a90d9; }
+  .reporte-metrica.destacado .reporte-metrica-valor { color: #1a5fa8; font-size: 16px; }
+
+  .reporte-metrica.ingreso { background: #d4edda; border-color: #b8ddc8; }
+  .reporte-metrica.ingreso .reporte-metrica-label { color: #3a9e6a; }
+  .reporte-metrica.ingreso .reporte-metrica-valor { color: #155724; }
+
+  .reporte-periodo {
+    font-size: 12px;
+    color: #aaa;
+    text-align: center;
+    margin-bottom: 10px;
+  }
+
+  .reporte-estados {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+    margin-top: 4px;
+  }
+
+  .reporte-badge {
+    padding: 3px 10px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 600;
+  }
+
+  .badge-completadas { background: #d4edda; color: #155724; }
+  .badge-canceladas  { background: #f8d7da; color: #721c24; }
+  .badge-pendientes  { background: #fff3cd; color: #856404; }
+</style>
+
+<div class="titulo-vista">Reportes</div>
+
+<div class="form-card">
+  <div class="form-card-header">
+    <span>Rango de fechas</span>
+  </div>
+  <div class="form-grid">
+    <div class="form-field">
+      <label class="field-label">Fecha inicio</label>
+      <input type="date" id="reporte-fecha-inicio">
+    </div>
+    <div class="form-field">
+      <label class="field-label">Fecha fin</label>
+      <input type="date" id="reporte-fecha-fin">
+    </div>
+  </div>
+  <div id="reporte-feedback" class="form-feedback oculto"></div>
+  <button class="btn-guardar" id="btn-reporte" onclick="generarReporteAdmin()">
+    Generar reporte
+  </button>
+</div>
+
+<div id="resultado-reporte"></div>
+
+<script>
+  function _escRep(str) {
+    return String(str == null ? '' : str)
+      .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+
+  function cargarReportesAdmin() {
+    var hoy       = new Date();
+    var inicioMes = new Date(hoy.getFullYear(), hoy.getMonth(), 1);
+    document.getElementById('reporte-fecha-inicio').value = inicioMes.toISOString().split('T')[0];
+    document.getElementById('reporte-fecha-fin').value    = hoy.toISOString().split('T')[0];
+    generarReporteAdmin();
+  }
+
+  function generarReporteAdmin() {
+    var fechaInicio = document.getElementById('reporte-fecha-inicio').value;
+    var fechaFin    = document.getElementById('reporte-fecha-fin').value;
+
+    if (!fechaInicio || !fechaFin) {
+      setFeedbackReporte('error', 'Selecciona un rango de fechas.'); return;
+    }
+    if (fechaFin < fechaInicio) {
+      setFeedbackReporte('error', 'La fecha fin no puede ser anterior a la fecha inicio.'); return;
+    }
+
+    var btn = document.getElementById('btn-reporte');
+    btn.disabled    = true;
+    btn.textContent = 'Generando…';
+    setFeedbackReporte('cargando', 'Calculando datos del periodo…');
+    document.getElementById('resultado-reporte').innerHTML = '';
+
+    google.script.run
+      .withSuccessHandler(function(reporte) {
+        btn.disabled    = false;
+        btn.textContent = 'Generar reporte';
+        setFeedbackReporte('oculto', '');
+        renderReporte(reporte);
+      })
+      .withFailureHandler(function(err) {
+        btn.disabled    = false;
+        btn.textContent = 'Generar reporte';
+        setFeedbackReporte('error', 'Error: ' + (err.message || err));
+      })
+      .obtenerReporte(fechaInicio, fechaFin);
+  }
+
+  function renderReporte(r) {
+    var div        = document.getElementById('resultado-reporte');
+    var pendientes = r.totalCitas - r.completadas - r.canceladas;
+    if (pendientes < 0) pendientes = 0;
+
+    div.innerHTML = '<div class="reporte-periodo">Periodo: ' + _escRep(r.periodo) + '</div>'
+      + '<div class="reporte-grid">'
+      + '<div class="reporte-metrica">'
+      +   '<div class="reporte-metrica-label">Total de citas</div>'
+      +   '<div class="reporte-metrica-valor">' + Number(r.totalCitas) + '</div>'
+      +   '<div class="reporte-estados">'
+      +     '<span class="reporte-badge badge-completadas">✓ ' + Number(r.completadas) + ' completadas</span>'
+      +     '<span class="reporte-badge badge-canceladas">✕ '  + Number(r.canceladas)  + ' canceladas</span>'
+      +     (pendientes > 0
+              ? '<span class="reporte-badge badge-pendientes">⏳ ' + pendientes + ' pendientes</span>'
+              : '')
+      +   '</div>'
+      + '</div>'
+      + '<div class="reporte-metrica ingreso">'
+      +   '<div class="reporte-metrica-label">Ingresos totales</div>'
+      +   '<div class="reporte-metrica-valor">$' + Number(r.ingresoTotal).toFixed(2) + '</div>'
+      + '</div>'
+      + '<div class="reporte-metrica destacado">'
+      +   '<div class="reporte-metrica-label">⭐ Empleado destacado</div>'
+      +   '<div class="reporte-metrica-valor">' + _escRep(r.empleadoTop || 'Sin datos') + '</div>'
+      + '</div>'
+      + '</div>';
+  }
+
+  function setFeedbackReporte(tipo, texto) {
+    var el = document.getElementById('reporte-feedback');
+    el.className   = 'form-feedback ' + tipo;
+    el.textContent = texto;
+  }
+</script>

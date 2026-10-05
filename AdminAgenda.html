@@ -1,0 +1,427 @@
+<style>
+  .agenda-selector { margin-bottom: 12px; }
+
+  .agenda-selector-row {
+    display: flex;
+    gap: 12px;
+  }
+
+  .agenda-field {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    flex: 1;
+  }
+
+  .field-label {
+    font-size: 11px;
+    font-weight: 700;
+    color: #999;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    margin: 0;
+  }
+
+  .agenda-field select,
+  .agenda-field input {
+    margin-top: 0;
+    font-size: 14px;
+    padding: 8px 10px;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    background: white;
+    width: 100%;
+    box-sizing: border-box;
+  }
+
+  #lista-agenda { margin-bottom: 12px; }
+
+  .horario-card {
+    background: white;
+    border: 1px solid #eee;
+    border-radius: 10px;
+    padding: 10px 14px;
+    margin-bottom: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+  }
+
+  .horario-hora   { font-size: 15px; font-weight: 600; color: #222; }
+
+  .horario-estado {
+    font-size: 12px;
+    color: #3a9e6a;
+    background: #d4edda;
+    padding: 3px 10px;
+    border-radius: 12px;
+    font-weight: 600;
+  }
+
+  .btn-bloquear {
+    background: #fff3cd;
+    color: #856404;
+    border: 1px solid #f0ad4e;
+    border-radius: 8px;
+    padding: 5px 12px;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    margin-top: 0;
+    white-space: nowrap;
+  }
+  .btn-bloquear:hover { background: #f0ad4e; color: white; }
+
+  .toggle-generar {
+    width: 100%;
+    background: none;
+    border: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 14px;
+    font-weight: 600;
+    color: #4a90d9;
+    cursor: pointer;
+    text-align: left;
+  }
+  .toggle-generar:hover { color: #3a78b5; }
+
+  .toggle-icon          { font-style: normal; font-size: 16px; transition: transform 0.2s; }
+  .toggle-icon.rotado   { transform: rotate(-90deg); }
+
+  .panel-generar {
+    margin-top: 14px;
+    overflow: hidden;
+    transition: max-height 0.25s ease, opacity 0.2s ease;
+    max-height: 600px;
+    opacity: 1;
+  }
+  .panel-generar.oculto {
+    max-height: 0;
+    opacity: 0;
+    pointer-events: none;
+    margin-top: 0;
+  }
+
+  .generar-grid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-bottom: 12px;
+  }
+.generar-grid .agenda-field {
+  flex: 1;
+  min-width: 120px;
+  max-width: calc(50% - 5px);
+}
+
+.generar-grid .agenda-field.full {
+  flex: 100%;
+  min-width: 100%;
+  max-width: 100%;
+}
+
+  .generar-feedback {
+    padding: 10px 14px;
+    border-radius: 8px;
+    font-size: 13px;
+    margin-bottom: 10px;
+    text-align: center;
+  }
+  .generar-feedback.oculto   { display: none; }
+  .generar-feedback.cargando { background: #eaf2fb; color: #1a5fa8; }
+  .generar-feedback.exito    { background: #d4edda; color: #155724; }
+  .generar-feedback.error    { background: #f8d7da; color: #721c24; }
+
+.btn-generar {
+  width: 100%;
+  padding: 11px;
+  background: #4a90d9;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  margin: 0;
+  transition: background 0.15s;
+}
+.btn-generar:hover    { background: #3a78b5; color: white; }
+.btn-generar:disabled { background: #9dbfe8; color: white; cursor: not-allowed; }
+
+.toggle-generar {
+  width: 100%;
+  background: none;
+  border: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 14px;
+  font-weight: 600;
+  color: #4a90d9;
+  cursor: pointer;
+  text-align: left;
+}
+.toggle-generar:hover         { color: #3a78b5; background: none; }
+.toggle-generar:hover span,
+.toggle-generar:hover i       { color: #3a78b5; }
+
+.btn-bloquear {
+  background: #fff3cd;
+  color: #856404;
+  border: 1px solid #f0ad4e;
+  border-radius: 8px;
+  padding: 5px 12px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  margin-top: 0;
+  white-space: nowrap;
+  width: auto;
+  flex-shrink: 0;
+}
+.btn-bloquear:hover { background: #f0ad4e; color: #856404; }
+</style>
+
+<div class="titulo-vista">Agenda</div>
+
+<div class="form-card agenda-selector">
+  <div class="agenda-selector-row">
+    <div class="agenda-field">
+      <label class="field-label">Empleado</label>
+      <select id="agenda-empleado" onchange="sincronizarEmpleado(this.value); consultarAgenda()">
+        <option value="">Seleccionar…</option>
+      </select>
+    </div>
+    <div class="agenda-field">
+      <label class="field-label">Fecha</label>
+      <input type="date" id="agenda-consulta-fecha" onchange="consultarAgenda()">
+    </div>
+  </div>
+</div>
+
+<div id="lista-agenda"></div>
+
+<div class="form-card">
+  <button class="toggle-generar" id="btn-toggle-generar" onclick="togglePanelGenerar()">
+    <span>+ Generar horarios para este empleado</span>
+    <i class="toggle-icon">▾</i>
+  </button>
+
+  <div id="panel-generar" class="panel-generar oculto">
+<div class="generar-grid">
+  <div class="agenda-field">
+    <label class="field-label">Fecha inicio</label>
+    <input type="date" id="agenda-fecha-inicio">
+  </div>
+  <div class="agenda-field">
+    <label class="field-label">Fecha fin</label>
+    <input type="date" id="agenda-fecha-fin">
+  </div>
+  <div class="agenda-field">
+    <label class="field-label">Hora inicio</label>
+    <input type="time" id="agenda-hora-inicio" value="09:00">
+  </div>
+  <div class="agenda-field">
+    <label class="field-label">Hora fin</label>
+    <input type="time" id="agenda-hora-fin" value="18:00">
+  </div>
+  <div class="agenda-field full">
+    <label class="field-label">Duración (min)</label>
+    <input type="number" id="agenda-duracion" value="30" min="5" max="240">
+  </div>
+</div>
+
+    <div id="generar-feedback" class="generar-feedback oculto"></div>
+
+    <button class="btn-generar" id="btn-generar" onclick="generarAgendaAdmin()">
+      Generar horarios
+    </button>
+  </div>
+</div>
+
+<script>
+  var _empleadosAgenda = [];
+  var _empleadoActual  = '';
+  var _panelAbierto    = false;
+
+  window.cargarAgendaAdmin   = cargarAgendaAdmin;
+  window.sincronizarEmpleado = sincronizarEmpleado;
+  window.consultarAgenda     = consultarAgenda;
+  window.generarAgendaAdmin  = generarAgendaAdmin;
+  window.ocuparHorarioAdmin  = ocuparHorarioAdmin;
+  window.togglePanelGenerar  = togglePanelGenerar;
+
+  function _escAg(str) {
+    return String(str == null ? '' : str)
+      .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+
+  function cargarAgendaAdmin() {
+    var hoy = new Date().toISOString().split('T')[0];
+    document.getElementById('agenda-fecha-inicio').min   = hoy;
+    document.getElementById('agenda-fecha-fin').min      = hoy;
+    document.getElementById('agenda-consulta-fecha').min = hoy;
+
+    if (_empleadosAgenda.length > 0) {
+      consultarAgenda();
+      return;
+    }
+
+    google.script.run
+      .withSuccessHandler(onEmpleadosRecibidos)
+      .withFailureHandler(function(err) {
+        document.getElementById('lista-agenda').innerHTML =
+          '<p style="color:red;text-align:center;">Error al cargar empleados: ' + (err.message || err) + '</p>';
+      })
+      .obtenerEmpleados();
+  }
+
+function onEmpleadosRecibidos(empleados) {
+  _empleadosAgenda = empleados || [];
+  var select = document.getElementById('agenda-empleado');
+  select.innerHTML = '<option value="">Seleccionar…</option>';
+
+  for (var i = 0; i < _empleadosAgenda.length; i++) {
+    var e   = _empleadosAgenda[i];
+    // Normalizar snake_case y PascalCase
+    var id     = e.id              || e.ID_Empleado      || '';
+    var nombre = e.nombre_empleado || e.Nombre_Empleado  || '';
+
+    var opt = document.createElement('option');
+    opt.value       = id;
+    opt.textContent = nombre;
+    select.appendChild(opt);
+  }
+
+  if (_empleadosAgenda.length > 0) {
+    select.value    = _empleadosAgenda[0].id || _empleadosAgenda[0].ID_Empleado;
+    _empleadoActual = select.value;
+    consultarAgenda();
+  }
+}
+
+  function sincronizarEmpleado(valor) {
+    _empleadoActual = valor;
+  }
+
+  function consultarAgenda() {
+    var idEmpleado = document.getElementById('agenda-empleado').value;
+    var fecha      = document.getElementById('agenda-consulta-fecha').value;
+    var div        = document.getElementById('lista-agenda');
+
+    if (!idEmpleado || !fecha) {
+      div.innerHTML = '';
+      return;
+    }
+
+    div.innerHTML = '<p style="text-align:center;color:#aaa;padding:16px 0;">Cargando…</p>';
+
+    google.script.run
+      .withSuccessHandler(renderHorarios)
+      .withFailureHandler(function(err) {
+        document.getElementById('lista-agenda').innerHTML =
+          '<p style="color:red;text-align:center;">Error: ' + (err.message || err) + '</p>';
+      })
+.obtenerDisponibilidad(idEmpleado, fecha);
+  }
+
+  function renderHorarios(horarios) {
+    var div = document.getElementById('lista-agenda');
+    div.innerHTML = '';
+
+    if (!horarios || horarios.length === 0) {
+      div.innerHTML = '<p style="text-align:center;color:#aaa;padding:16px 0;">Sin horarios disponibles para este día</p>';
+      return;
+    }
+
+    var frag = document.createDocumentFragment();
+    for (var i = 0; i < horarios.length; i++) {
+      var h    = horarios[i];
+      var card = document.createElement('div');
+      card.className = 'horario-card';
+      card.innerHTML = '<span class="horario-hora">' + _escAg(h.Hora_inicio) + ' – ' + _escAg(h.Hora_fin) + '</span>'
+        + '<span class="horario-estado">Disponible</span>'
+        + '<button class="btn-bloquear" onclick="ocuparHorarioAdmin(' + h.ID_Agenda + ')">🔒 Bloquear</button>';
+      frag.appendChild(card);
+    }
+    div.appendChild(frag);
+  }
+
+  function togglePanelGenerar() {
+    _panelAbierto = !_panelAbierto;
+    var panel = document.getElementById('panel-generar');
+    var icon  = document.querySelector('.toggle-icon');
+    if (_panelAbierto) {
+      panel.classList.remove('oculto');
+      icon.classList.add('rotado');
+    } else {
+      panel.classList.add('oculto');
+      icon.classList.remove('rotado');
+    }
+  }
+
+  function setFeedbackAgenda(tipo, mensaje) {
+    var el = document.getElementById('generar-feedback');
+    el.className   = 'generar-feedback ' + tipo;
+    el.textContent = mensaje;
+  }
+
+  function generarAgendaAdmin() {
+    var idEmpleado  = document.getElementById('agenda-empleado').value;
+    var fechaInicio = document.getElementById('agenda-fecha-inicio').value;
+    var fechaFin    = document.getElementById('agenda-fecha-fin').value;
+    var horaInicio  = document.getElementById('agenda-hora-inicio').value;
+    var horaFin     = document.getElementById('agenda-hora-fin').value;
+    var duracion    = Number(document.getElementById('agenda-duracion').value);
+
+    if (!idEmpleado) {
+      setFeedbackAgenda('error', 'Selecciona un empleado.'); return;
+    }
+    if (!fechaInicio || !fechaFin || !horaInicio || !horaFin) {
+      setFeedbackAgenda('error', 'Completa todos los campos antes de generar.'); return;
+    }
+    if (fechaFin < fechaInicio) {
+      setFeedbackAgenda('error', 'La fecha fin no puede ser anterior a la fecha inicio.'); return;
+    }
+    if (horaFin <= horaInicio) {
+      setFeedbackAgenda('error', 'La hora fin debe ser posterior a la hora inicio.'); return;
+    }
+    if (!duracion || duracion < 5) {
+      setFeedbackAgenda('error', 'La duración mínima es 5 minutos.'); return;
+    }
+
+    var btn = document.getElementById('btn-generar');
+    btn.disabled    = true;
+    btn.textContent = 'Generando…';
+    setFeedbackAgenda('cargando', 'Creando turnos, espera un momento…');
+
+    google.script.run
+      .withSuccessHandler(function() {
+        btn.disabled    = false;
+        btn.textContent = 'Generar horarios';
+        setFeedbackAgenda('exito', '✓ Horarios generados correctamente.');
+        consultarAgenda();
+      })
+      .withFailureHandler(function(error) {
+        btn.disabled    = false;
+        btn.textContent = 'Generar horarios';
+        setFeedbackAgenda('error', 'Error: ' + (error.message || error));
+      })
+.generarAgenda(idEmpleado, fechaInicio, fechaFin, horaInicio, horaFin, duracion);
+  }
+
+  function ocuparHorarioAdmin(idAgenda) {
+    if (!confirm('¿Bloquear este horario?')) return;
+    google.script.run
+      .withSuccessHandler(consultarAgenda)
+      .withFailureHandler(function(err) { alert('Error al bloquear: ' + (err.message || err)); })
+      .ocuparHorario(idAgenda);
+  }
+</script>

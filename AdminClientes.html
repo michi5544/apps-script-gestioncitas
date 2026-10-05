@@ -1,0 +1,298 @@
+<style>
+  .cliente-card {
+    background: white;
+    border: 1px solid #eee;
+    border-radius: 12px;
+    padding: 14px 16px;
+    margin-bottom: 10px;
+  }
+  .cliente-top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+  }
+  .cliente-top-info {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex: 1;
+  }
+  .cliente-avatar {
+    width: 38px;
+    height: 38px;
+    border-radius: 50%;
+    background: #eaf2fb;
+    color: #1a5fa8;
+    font-size: 13px;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+  }
+  .clientes-meta {
+    font-size: 12px;
+    color: #aaa;
+    margin-bottom: 8px;
+    min-height: 18px;
+    padding: 0 2px;
+  }
+  .buscador-wrap { position: relative; }
+  .buscador-wrap input { padding-left: 34px !important; }
+  .buscador-icono {
+    position: absolute;
+    left: 10px;
+    top: 50%;
+    transform: translateY(-50%);
+    font-size: 15px;
+    color: #bbb;
+    pointer-events: none;
+  }
+
+  /* ── Panel de edición colapsable ── */
+  .panel-editar-cliente {
+    overflow: hidden;
+    transition: max-height 0.25s ease, opacity 0.2s ease;
+    max-height: 0;
+    opacity: 0;
+    pointer-events: none;
+  }
+  .panel-editar-cliente.abierto {
+    max-height: 400px;
+    opacity: 1;
+    pointer-events: all;
+  }
+  .panel-editar-inner {
+    border-top: 1px solid #f0f0f0;
+    margin-top: 10px;
+    padding-top: 12px;
+  }
+  .cliente-card button[title="Editar"] {
+  width: 32px;
+  height: 32px;
+  border: none;
+  border-radius: 8px;
+  background: #fff7e6;
+  cursor: pointer;
+  margin: 0;
+  padding: 0;
+  font-size: 14px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: opacity 0.15s;
+}
+
+.cliente-card button[title="Editar"]:hover {
+  opacity: 0.8;
+  background: #fff7e6;
+}
+</style>
+
+<div class="titulo-vista">Clientes</div>
+
+<div class="form-card">
+  <div class="form-field full">
+    <label class="field-label">Buscar cliente</label>
+    <div class="buscador-wrap">
+      <span class="buscador-icono">🔍</span>
+      <input type="text" id="cliente-buscar"
+             oninput="filtrarClientes()"
+             placeholder="Nombre o teléfono…">
+    </div>
+  </div>
+</div>
+
+<div class="clientes-meta" id="clientes-meta"></div>
+<div id="lista-clientes"></div>
+
+<script>
+  var _clientesCache = [];
+
+  window.cargarClientesAdmin = cargarClientesAdmin;
+  window.filtrarClientes     = filtrarClientes;
+  window.toggleEditarCliente = toggleEditarCliente;
+  window.guardarClienteEdit  = guardarClienteEdit;
+
+  function _escCli(str) {
+    return String(str == null ? '' : str)
+      .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+
+  function _inicialesCli(nombre) {
+    var partes    = String(nombre || '?').split(' ').slice(0, 2);
+    var iniciales = '';
+    for (var i = 0; i < partes.length; i++) {
+      if (partes[i].length > 0) iniciales += partes[i][0];
+    }
+    return iniciales.toUpperCase() || '?';
+  }
+
+  function cargarClientesAdmin() {
+    document.getElementById('lista-clientes').innerHTML =
+      '<p style="text-align:center;color:#aaa;padding:24px 0;">Cargando…</p>';
+    document.getElementById('clientes-meta').textContent = '';
+
+    google.script.run
+      .withSuccessHandler(function(clientes) {
+        _clientesCache = clientes || [];
+        mostrarClientes(_clientesCache);
+      })
+      .withFailureHandler(function(err) {
+        document.getElementById('lista-clientes').innerHTML =
+          '<p style="text-align:center;color:red;">Error al cargar: ' + (err.message || err) + '</p>';
+      })
+      .obtenerClientes();
+  }
+
+function mostrarClientes(clientes) {
+  var div  = document.getElementById('lista-clientes');
+  var meta = document.getElementById('clientes-meta');
+  div.innerHTML = '';
+
+  if (!clientes || clientes.length === 0) {
+    meta.textContent = '';
+    div.innerHTML = '<p style="text-align:center;color:#aaa;padding:24px 0;">Sin clientes registrados</p>';
+    return;
+  }
+
+  meta.textContent = clientes.length + ' cliente' + (clientes.length !== 1 ? 's' : '');
+
+  var frag = document.createDocumentFragment();
+
+  for (var i = 0; i < clientes.length; i++) {
+    var c = clientes[i];
+
+    // Normalizar campos Firestore (snake_case) y Sheets (PascalCase)
+    var idCli  = c.id              || c.ID_Cliente      || '';
+    var nombre = c.nombre_cliente  || c.Nombre_Cliente  || '';
+    var tel    = c.telefono        || c.Telefono        || '';
+    var email  = c.email           || c.Email           || '';
+
+    var chipsHTML = '';
+    if (tel || email) {
+      chipsHTML = '<div class="servicio-chips" style="margin-top:8px;">'
+        + (tel   ? '<span class="chip-dato">📞 ' + _escCli(tel)   + '</span>' : '')
+        + (email ? '<span class="chip-dato">✉️ ' + _escCli(email) + '</span>' : '')
+        + '</div>';
+    }
+
+    var card = document.createElement('div');
+    card.className = 'cliente-card';
+    card.setAttribute('data-id',     idCli);
+    card.setAttribute('data-nombre', nombre);
+    card.setAttribute('data-tel',    String(tel));
+    card.setAttribute('data-email',  email);
+
+    card.innerHTML = '<div class="cliente-top">'
+      + '<div class="cliente-top-info">'
+      +   '<div class="cliente-avatar">' + _inicialesCli(nombre) + '</div>'
+      +   '<div><div class="servicio-nombre">' + _escCli(nombre) + '</div></div>'
+      + '</div>'
+      + '<button style="background:#fff7e6;" title="Editar">✏️</button>'
+      + '</div>'
+      + chipsHTML
+      + '<div class="panel-editar-cliente" id="panel-' + idCli + '">'
+      +   '<div class="panel-editar-inner">'
+      +     '<div class="form-grid">'
+      +       '<div class="form-field full"><label class="field-label">Nombre</label>'
+      +         '<input type="text" id="edit-nombre-' + idCli + '" value="' + _escCli(nombre) + '"></div>'
+      +       '<div class="form-field"><label class="field-label">Teléfono</label>'
+      +         '<input type="tel" id="edit-tel-' + idCli + '" value="' + _escCli(tel) + '"></div>'
+      +       '<div class="form-field"><label class="field-label">Email</label>'
+      +         '<input type="email" id="edit-email-' + idCli + '" value="' + _escCli(email) + '"></div>'
+      +     '</div>'
+      +     '<div id="edit-feedback-' + idCli + '" class="form-feedback oculto"></div>'
+      +     '<button class="btn-guardar" style="margin-top:8px;" onclick="guardarClienteEdit(\'' + idCli + '\')">Guardar cambios</button>'
+      +   '</div>'
+      + '</div>';
+
+    (function(card, idCliente) {
+      card.querySelector('button[title="Editar"]').addEventListener('click', function() {
+        toggleEditarCliente(idCliente);
+      });
+    })(card, idCli);
+
+    frag.appendChild(card);
+  }
+
+  div.appendChild(frag);
+}
+
+  function toggleEditarCliente(idCliente) {
+    var panel      = document.getElementById('panel-' + idCliente);
+    if (!panel) return;
+    var estaAbierto = panel.classList.contains('abierto');
+
+    document.querySelectorAll('.panel-editar-cliente').forEach(function(p) {
+      p.classList.remove('abierto');
+    });
+
+    if (!estaAbierto) {
+      panel.classList.add('abierto');
+      panel.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
+  }
+
+function guardarClienteEdit(idCliente) {
+  var btn = document.querySelector('#panel-' + idCliente + ' .btn-guardar');
+  if (btn && btn.disabled) return; // evitar doble ejecución
+  if (btn) btn.disabled = true;
+
+  var nombre   = document.getElementById('edit-nombre-' + idCliente).value.trim();
+  var telefono = document.getElementById('edit-tel-'    + idCliente).value.trim();
+  var email    = document.getElementById('edit-email-'  + idCliente).value.trim();
+  var feedback = document.getElementById('edit-feedback-' + idCliente);
+
+  if (!nombre) {
+    feedback.className   = 'form-feedback error';
+    feedback.textContent = 'El nombre es obligatorio.';
+    if (btn) btn.disabled = false;
+    return;
+  }
+
+  feedback.className   = 'form-feedback cargando';
+  feedback.textContent = 'Guardando…';
+
+  google.script.run
+    .withSuccessHandler(function() {
+      feedback.className   = 'form-feedback exito';
+      feedback.textContent = '✓ Cliente actualizado.';
+      if (btn) btn.disabled = false;
+      cargarClientesAdmin();
+    })
+    .withFailureHandler(function(err) {
+      feedback.className   = 'form-feedback error';
+      feedback.textContent = 'Error: ' + (err.message || err);
+      if (btn) btn.disabled = false;
+    })
+    .editarCliente(String(idCliente), nombre, telefono, email);
+}
+
+  function filtrarClientes() {
+    var texto = document.getElementById('cliente-buscar').value.toLowerCase().trim();
+
+    if (!texto) {
+      mostrarClientes(_clientesCache);
+      return;
+    }
+
+    var filtrados = [];
+    for (var i = 0; i < _clientesCache.length; i++) {
+      var c      = _clientesCache[i];
+      var nombre = (c.Nombre_Cliente || '').toString().toLowerCase();
+      var tel    = (c.Telefono       || '').toString().toLowerCase();
+      if (nombre.indexOf(texto) !== -1 || tel.indexOf(texto) !== -1) {
+        filtrados.push(c);
+      }
+    }
+
+    document.getElementById('clientes-meta').textContent =
+      filtrados.length + ' resultado' + (filtrados.length !== 1 ? 's' : '')
+      + ' para "' + document.getElementById('cliente-buscar').value + '"';
+
+    mostrarClientes(filtrados);
+  }
+</script>

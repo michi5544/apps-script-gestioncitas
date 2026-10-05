@@ -1,0 +1,380 @@
+<style>
+  .form-card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 14px;
+  }
+
+  .form-card-header span {
+    font-size: 15px;
+    font-weight: 700;
+    color: #222;
+  }
+
+  .btn-form-cancelar {
+    background: none;
+    border: 1px solid #ddd;
+    border-radius: 20px;
+    padding: 4px 12px;
+    font-size: 12px;
+    color: #888;
+    cursor: pointer;
+    margin: 0;
+    width: auto;
+  }
+  .btn-form-cancelar:hover { border-color: #d9534f; color: #d9534f; }
+
+  .form-grid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-bottom: 12px;
+  }
+
+  .form-field {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    flex: 1;
+    min-width: 130px;
+  }
+
+  .form-field.full { flex: 100%; min-width: 100%; }
+
+  .field-label {
+    font-size: 11px;
+    font-weight: 700;
+    color: #bbb;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    margin: 0;
+  }
+
+  .form-card .form-field input,
+  .form-card .form-field textarea,
+  .form-card .form-field select {
+    margin-top: 0;
+    font-size: 14px;
+    border: 1px solid #e0e0e0;
+    border-radius: 8px;
+    padding: 9px 11px;
+    background: #fafafa;
+    width: 100%;
+    resize: none;
+    box-sizing: border-box;
+  }
+
+  .form-card .form-field input:focus,
+  .form-card .form-field textarea:focus {
+    outline: none;
+    border-color: #4a90d9;
+    background: white;
+  }
+
+  .form-feedback {
+    padding: 9px 13px;
+    border-radius: 8px;
+    font-size: 13px;
+    margin-bottom: 10px;
+    text-align: center;
+  }
+  .form-feedback.oculto   { display: none; }
+  .form-feedback.error    { background: #f8d7da; color: #721c24; }
+  .form-feedback.exito    { background: #d4edda; color: #155724; }
+  .form-feedback.cargando { background: #eaf2fb; color: #1a5fa8; }
+
+  .btn-guardar {
+    width: 100%;
+    padding: 11px;
+    background: #4a90d9;
+    color: white;
+    border: none;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    margin: 0;
+    transition: background 0.15s;
+  }
+  .btn-guardar:hover    { background: #3a78b5; }
+  .btn-guardar:disabled { background: #9dbfe8; cursor: not-allowed; }
+
+  .servicio-card {
+    background: white;
+    border: 1px solid #eee;
+    border-radius: 12px;
+    padding: 14px 16px;
+    margin-bottom: 10px;
+  }
+
+  .servicio-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 8px;
+    margin-bottom: 8px;
+  }
+
+  .servicio-nombre { font-size: 15px; font-weight: 700; color: #222; }
+  .servicio-desc   { font-size: 13px; color: #999; margin-top: 2px; }
+
+  .servicio-acciones { display: flex; gap: 6px; flex-shrink: 0; }
+
+  .servicio-acciones button {
+    width: 32px;
+    height: 32px;
+    border: none;
+    border-radius: 8px;
+    font-size: 14px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0;
+    padding: 0;
+    transition: opacity 0.15s;
+  }
+  .servicio-acciones button:hover { opacity: 0.8; }
+
+  .servicio-chips {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+    margin-top: 6px;
+  }
+
+  .chip-dato {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 3px 10px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 600;
+    background: #f4f4f4;
+    color: #555;
+  }
+  .chip-dato.precio { background: #d4edda; color: #155724; }
+  .chip-dato.tiempo { background: #d1ecf1; color: #0c5460; }
+  .chip-dato.stock  { background: #fff3cd; color: #856404; }
+</style>
+
+<div class="titulo-vista">Servicios</div>
+
+<div class="form-card" id="form-servicio-card">
+  <input type="hidden" id="servicio-id">
+
+  <div class="form-card-header" id="form-servicio-header">
+    <span id="form-servicio-titulo">Nuevo servicio</span>
+    <button class="btn-form-cancelar" id="btn-cancelar-servicio"
+            onclick="limpiarFormServicio()" style="display:none;">
+      ✕ Cancelar
+    </button>
+  </div>
+
+  <div class="form-grid">
+    <div class="form-field full">
+      <label class="field-label">Nombre</label>
+      <input type="text" id="servicio-nombre" placeholder="Ej: Corte de cabello">
+    </div>
+    <div class="form-field full">
+      <label class="field-label">Descripción</label>
+      <textarea id="servicio-descripcion" rows="2"
+                placeholder="Descripción breve (opcional)"></textarea>
+    </div>
+    <div class="form-field">
+      <label class="field-label">Duración (min)</label>
+      <input type="number" id="servicio-duracion" placeholder="30" min="1">
+    </div>
+    <div class="form-field">
+      <label class="field-label">Precio ($)</label>
+      <input type="number" id="servicio-precio" placeholder="0.00" step="0.01" min="0">
+    </div>
+    <div class="form-field">
+      <label class="field-label">Stock disponible</label>
+      <input type="number" id="servicio-cantidad" placeholder="0" min="0">
+    </div>
+  </div>
+
+  <div id="form-servicio-feedback" class="form-feedback oculto"></div>
+
+  <button class="btn-guardar" id="btn-guardar-servicio" onclick="guardarServicio()">
+    Guardar servicio
+  </button>
+</div>
+
+<div id="lista-servicios"></div>
+
+<script>
+  function _escSrv(str) {
+    return String(str == null ? '' : str)
+      .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+
+  function cargarServiciosAdmin() {
+    google.script.run
+      .withSuccessHandler(renderServicios)
+      .withFailureHandler(function(err) {
+        document.getElementById('lista-servicios').innerHTML =
+          '<p style="color:red;text-align:center;">Error al cargar: ' + (err.message || err) + '</p>';
+      })
+      .obtenerServicios();
+  }
+
+function renderServicios(servicios) {
+  var div = document.getElementById('lista-servicios');
+  div.innerHTML = '';
+
+  if (!servicios || servicios.length === 0) {
+    div.innerHTML = '<p style="text-align:center;color:#aaa;padding:24px 0;">Sin servicios registrados</p>';
+    return;
+  }
+
+  var frag = document.createDocumentFragment();
+
+  for (var i = 0; i < servicios.length; i++) {
+    var s    = servicios[i];
+
+    // Normalizar campos — Firestore usa snake_case
+    var id          = s.id              || s.ID_Servicio        || '';
+    var nombre      = s.nombre          || s.Nombre             || '';
+    var descripcion = s.descripcion     || s.Descripcion        || '';
+    var duracion    = s.duracion_min    || s.Duracion_min       || 0;
+    var precio      = s.precio          || s.Precio             || 0;
+    var cantidad    = s.cantidad_disponible || s.Cantidad_disponible || 0;
+
+    var card = document.createElement('div');
+    card.className = 'servicio-card';
+    card.setAttribute('data-id',       id);
+    card.setAttribute('data-nombre',   nombre);
+    card.setAttribute('data-desc',     descripcion);
+    card.setAttribute('data-duracion', duracion);
+    card.setAttribute('data-precio',   precio);
+    card.setAttribute('data-cantidad', cantidad);
+
+    card.innerHTML = '<div class="servicio-top">'
+      + '<div>'
+      +   '<div class="servicio-nombre">' + _escSrv(nombre) + '</div>'
+      +   (descripcion ? '<div class="servicio-desc">' + _escSrv(descripcion) + '</div>' : '')
+      + '</div>'
+      + '<div class="servicio-acciones">'
+      +   '<button style="background:#fff7e6;" title="Editar">✏️</button>'
+      +   '<button style="background:#fdf0f0;" title="Eliminar">🗑️</button>'
+      + '</div>'
+      + '</div>'
+      + '<div class="servicio-chips">'
+      +   '<span class="chip-dato precio">$' + Number(precio).toFixed(2) + '</span>'
+      +   '<span class="chip-dato tiempo">⏱ ' + _escSrv(duracion) + ' min</span>'
+      +   '<span class="chip-dato stock">Stock: ' + _escSrv(cantidad) + '</span>'
+      + '</div>';
+
+    (function(c) {
+      c.querySelectorAll('button')[0].addEventListener('click', function() {
+        editarServicioForm({
+          ID_Servicio         : c.getAttribute('data-id'),
+          Nombre              : c.getAttribute('data-nombre'),
+          Descripcion         : c.getAttribute('data-desc'),
+          Duracion_min        : c.getAttribute('data-duracion'),
+          Precio              : c.getAttribute('data-precio'),
+          Cantidad_disponible : c.getAttribute('data-cantidad')
+        });
+      });
+      c.querySelectorAll('button')[1].addEventListener('click', function() {
+        eliminarServicioAdmin(c.getAttribute('data-id'));
+      });
+    })(card);
+
+    frag.appendChild(card);
+  }
+
+  div.appendChild(frag);
+}
+
+  function setFeedbackSrv(tipo, texto) {
+    var el = document.getElementById('form-servicio-feedback');
+    el.className   = 'form-feedback ' + tipo;
+    el.textContent = texto;
+  }
+
+  function guardarServicio() {
+    var id          = document.getElementById('servicio-id').value;
+    var nombre      = document.getElementById('servicio-nombre').value.trim();
+    var descripcion = document.getElementById('servicio-descripcion').value.trim();
+    var duracion    = Number(document.getElementById('servicio-duracion').value);
+    var precio      = Number(document.getElementById('servicio-precio').value);
+    var cantidad    = Number(document.getElementById('servicio-cantidad').value);
+
+    if (!nombre) {
+      setFeedbackSrv('error', 'El nombre es obligatorio.'); return;
+    }
+    if (!precio || precio <= 0) {
+      setFeedbackSrv('error', 'El precio debe ser mayor a 0.'); return;
+    }
+    if (!duracion || duracion <= 0) {
+      setFeedbackSrv('error', 'La duración debe ser mayor a 0.'); return;
+    }
+
+    var btn = document.getElementById('btn-guardar-servicio');
+    btn.disabled    = true;
+    btn.textContent = 'Guardando…';
+    setFeedbackSrv('cargando', 'Guardando, espera un momento…');
+
+    var onExito = function() {
+      btn.disabled    = false;
+      btn.textContent = 'Guardar servicio';
+      setFeedbackSrv('exito', '✓ Servicio guardado correctamente.');
+      limpiarFormServicio();
+      cargarServiciosAdmin();
+    };
+
+    var onError = function(err) {
+      btn.disabled    = false;
+      btn.textContent = 'Guardar servicio';
+      setFeedbackSrv('error', 'Error: ' + (err.message || err));
+    };
+
+    if (id) {
+      google.script.run
+        .withSuccessHandler(onExito).withFailureHandler(onError)
+        .editarServicio(Number(id), nombre, descripcion, duracion, precio, cantidad);
+    } else {
+      google.script.run
+        .withSuccessHandler(onExito).withFailureHandler(onError)
+        .agregarServicio(nombre, descripcion, duracion, precio, cantidad);
+    }
+  }
+
+  function editarServicioForm(s) {
+    document.getElementById('servicio-id').value          = s.ID_Servicio         || '';
+    document.getElementById('servicio-nombre').value      = s.Nombre              || '';
+    document.getElementById('servicio-descripcion').value = s.Descripcion         || '';
+    document.getElementById('servicio-duracion').value    = s.Duracion_min        || '';
+    document.getElementById('servicio-precio').value      = s.Precio              || '';
+    document.getElementById('servicio-cantidad').value    = s.Cantidad_disponible || '';
+
+    document.getElementById('form-servicio-titulo').textContent    = 'Editar servicio';
+    document.getElementById('btn-cancelar-servicio').style.display = 'inline-flex';
+    setFeedbackSrv('oculto', '');
+    document.getElementById('form-servicio-card').scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+
+  function limpiarFormServicio() {
+    var ids = ['servicio-id', 'servicio-nombre', 'servicio-descripcion',
+               'servicio-duracion', 'servicio-precio', 'servicio-cantidad'];
+    for (var i = 0; i < ids.length; i++) {
+      document.getElementById(ids[i]).value = '';
+    }
+    document.getElementById('form-servicio-titulo').textContent    = 'Nuevo servicio';
+    document.getElementById('btn-cancelar-servicio').style.display = 'none';
+    setFeedbackSrv('oculto', '');
+  }
+
+  function eliminarServicioAdmin(id) {
+    if (!confirm('¿Eliminar este servicio?')) return;
+    google.script.run
+      .withSuccessHandler(cargarServiciosAdmin)
+      .withFailureHandler(function(err) { alert('Error: ' + (err.message || err)); })
+      .eliminarServicio(id);
+  }
+</script>

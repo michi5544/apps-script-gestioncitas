@@ -1,0 +1,367 @@
+<script>
+  var _serviciosCache = [];
+  var _productosCache = [];
+  var _agendaCache    = [];
+
+  window.onload = function () {
+    var hoy = new Date().toISOString().split('T')[0];
+    document.getElementById('fecha').min   = hoy;
+    document.getElementById('fecha').min = hoy;
+
+    cargarServicios();
+    cargarEmpleados();
+    cargarProductos();
+  };
+
+  /* ══ CARGA INICIAL ══ */
+  function formatearFechaDisplay(fecha) {
+  if (!fecha) return '';
+  // Agregar T00:00:00 para evitar problemas de zona horaria
+  var parts = String(fecha).split('T')[0].split('-');
+  if (parts.length !== 3) return fecha;
+  var d = new Date(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2]));
+  return d.toLocaleDateString('es-ES', { day: '2-digit', month: 'long', year: 'numeric' });
+}
+
+function cargarServicios() {
+  google.script.run
+    .withSuccessHandler(function(servicios) {
+      _serviciosCache = servicios || [];
+      var select = document.getElementById('servicio');
+      _serviciosCache.forEach(function(s) {
+        // Normalizar campos snake_case y PascalCase
+        var nombre = s.nombre || s.Nombre || '';
+        var precio = s.precio || s.Precio || 0;
+        var id     = s.id     || s.ID_Servicio || '';
+
+        var opt = document.createElement('option');
+        opt.value           = id;
+        opt.textContent     = nombre + ' — $' + Number(precio).toFixed(2);
+        opt.dataset.precio  = precio;
+        opt.dataset.nombre  = nombre;
+        select.appendChild(opt);
+      });
+      select.addEventListener('change', function() {
+        actualizarResumen();
+        actualizarProgreso();
+      });
+      actualizarResumen();
+    })
+    .withFailureHandler(function(err) { console.error('Error servicios:', err); })
+    .obtenerServicios();
+}
+
+function cargarEmpleados() {
+  google.script.run
+    .withSuccessHandler(function(empleados) {
+      var select = document.getElementById('empleado');
+      (empleados || []).forEach(function(e) {
+        var nombre = e.nombre_empleado || e.Nombre_Empleado || '';
+        var id     = e.id             || e.ID_Empleado     || '';
+        var opt = document.createElement('option');
+        opt.value       = id;
+        opt.textContent = nombre;
+        select.appendChild(opt);
+      });
+    })
+    .withFailureHandler(function(err) { console.error('Error empleados:', err); })
+    .obtenerEmpleados();
+}
+
+function cargarProductos() {
+  google.script.run
+    .withSuccessHandler(function(productos) {
+      _productosCache = (productos || []).map(function(p) {
+        return {
+          id    : p.id      || p.ID_Producto || '',
+          nombre: p.titulo  || p.Titulo      || '',
+          precio: Number(p.precio || p.Precio || 0),
+          qty   : 0
+        };
+      });
+      renderProductos();
+      actualizarResumen();
+    })
+    .withFailureHandler(function(err) { console.error('Error productos:', err); })
+    .obtenerProductos();
+}
+
+  /* ══ HORARIOS ══ */
+  function cargarHorarios() {
+    var idEmpleado = document.getElementById('empleado').value;
+    var fecha      = document.getElementById('fecha').value;
+    var sel        = document.getElementById('horario');
+
+    if (!idEmpleado || !fecha) {
+      sel.innerHTML = '<option value="">Elige empleado y fecha</option>';
+      return;
+    }
+
+    sel.innerHTML = '<option value="">Cargando…</option>';
+
+    google.script.run
+      .withSuccessHandler(function(horarios) {
+        _agendaCache  = horarios || [];
+        sel.innerHTML = '';
+        if (_agendaCache.length === 0) {
+          sel.innerHTML = '<option value="">Sin horarios disponibles</option>';
+          return;
+        }
+        _agendaCache.forEach(function(h) {
+          var opt = document.createElement('option');
+opt.value = h.ID_Agenda || h.id || '';
+          opt.textContent = h.Hora_inicio + ' – ' + h.Hora_fin;
+          sel.appendChild(opt);
+        });
+        actualizarProgreso();
+      })
+      .withFailureHandler(function(err) {
+        sel.innerHTML = '<option value="">Error al cargar</option>';
+        console.error('Error horarios:', err);
+      })
+    .obtenerDisponibilidad(idEmpleado, fecha);
+  }
+
+  /* ══ PAGO ══ */
+  function seleccionarPago(btn) {
+    document.querySelectorAll('.pago-chip').forEach(function(b) { b.classList.remove('activo'); });
+    btn.classList.add('activo');
+    document.getElementById('formaPago').value = btn.dataset.pago;
+  }
+
+  /* ══ PRODUCTOS ══ */
+  function renderProductos() {
+    var contenedor = document.getElementById('listaProductos');
+    contenedor.innerHTML = '';
+
+    if (_productosCache.length === 0) {
+      contenedor.innerHTML = '<p style="font-size:13px;color:#bbb;text-align:center;padding:8px 0;">Sin productos disponibles</p>';
+      return;
+    }
+
+    _productosCache.forEach(function(p, idx) {
+      var div = document.createElement('div');
+      div.className = 'prod-item';
+      div.innerHTML = '<div>'
+        + '<div class="prod-nombre">' + p.nombre + '</div>'
+        + '<div class="prod-precio">$' + p.precio.toFixed(2) + '</div>'
+        + '</div>'
+        + '<div class="prod-stepper">'
+        + '<button type="button" class="stepper-btn" onclick="cambiarQty(' + idx + ', -1)">−</button>'
+        + '<span class="stepper-val" id="qty-' + idx + '">0</span>'
+        + '<button type="button" class="stepper-btn" onclick="cambiarQty(' + idx + ', 1)">+</button>'
+        + '</div>';
+      contenedor.appendChild(div);
+    });
+  }
+
+  function cambiarQty(idx, delta) {
+    _productosCache[idx].qty = Math.max(0, _productosCache[idx].qty + delta);
+    document.getElementById('qty-' + idx).textContent = _productosCache[idx].qty;
+    actualizarResumen();
+  }
+
+  /* ══ RESUMEN ══ */
+  function actualizarResumen() {
+    var resumenCard   = document.getElementById('resumen-card');
+    var resumenLineas = document.getElementById('resumen-lineas');
+    var resumenTotal  = document.getElementById('resumen-total');
+    var selSrv        = document.getElementById('servicio');
+    var opt           = selSrv.options[selSrv.selectedIndex];
+    var precioSrv     = Number(opt && opt.dataset.precio) || 0;
+    var nomSrv        = (opt && opt.dataset.nombre) || (opt && opt.textContent) || 'Servicio';
+
+    var lineasHTML = '';
+    var total      = 0;
+
+    if (precioSrv > 0) {
+      lineasHTML += '<div class="resumen-linea"><span>' + nomSrv + '</span><span>$' + precioSrv.toFixed(2) + '</span></div>';
+      total += precioSrv;
+    }
+
+    _productosCache.forEach(function(p) {
+      if (p.qty > 0) {
+        var sub = p.precio * p.qty;
+        total  += sub;
+        lineasHTML += '<div class="resumen-linea"><span>' + p.nombre + ' ×' + p.qty + '</span><span>$' + sub.toFixed(2) + '</span></div>';
+      }
+    });
+
+    resumenLineas.innerHTML   = lineasHTML;
+    resumenTotal.textContent  = '$' + total.toFixed(2);
+    resumenCard.style.display = total > 0 ? 'block' : 'none';
+  }
+
+  /* ══ BARRA DE PROGRESO ══ */
+  function actualizarProgreso() {
+    var nombre   = document.getElementById('nombreCliente').value.trim();
+    var telefono = document.getElementById('telefono').value.trim();
+    var servicio = document.getElementById('servicio').value;
+    var empleado = document.getElementById('empleado').value;
+    var horario  = document.getElementById('horario').value;
+
+    var paso = 1;
+    if (nombre && telefono)                  paso = 2;
+    if (paso === 2 && servicio && empleado)  paso = 3;
+    if (paso === 3 && horario)               paso = 4;
+
+    for (var i = 1; i <= 4; i++) {
+      var dot = document.getElementById('dot-' + i);
+      if (!dot) continue;
+      dot.classList.toggle('activo',   i <= paso);
+      dot.classList.toggle('completo', i < paso);
+    }
+  }
+
+  /* ══ ENVÍO ══ */
+  function enviarReserva() {
+    var nombreCliente = document.getElementById('nombreCliente').value.trim();
+    var telefono      = document.getElementById('telefono').value.trim();
+    var fecha = document.getElementById('fecha').value;
+    var idServicio    = document.getElementById('servicio').value;
+    var idEmpleado    = document.getElementById('empleado').value;
+    var idAgenda      = document.getElementById('horario').value;
+    var formaPago     = document.getElementById('formaPago').value;
+
+    if (!nombreCliente || !telefono) {
+      mostrarMensaje('Ingresa tu nombre y teléfono.', 'error'); return;
+    }
+    if (!idServicio) {
+      mostrarMensaje('Selecciona un servicio.', 'error'); return;
+    }
+    if (!idEmpleado) {
+      mostrarMensaje('Selecciona un empleado.', 'error'); return;
+    }
+    if (!idAgenda) {
+      mostrarMensaje('Selecciona un horario disponible.', 'error'); return;
+    }
+
+var horaSeleccionada = null;
+for (var i = 0; i < _agendaCache.length; i++) {
+  var h = _agendaCache[i];
+  var hId = String(h.ID_Agenda || h.id || '');
+  if (hId === String(idAgenda)) {
+    horaSeleccionada = h;
+    break;
+  }
+}
+console.log('horaSeleccionada:', JSON.stringify(horaSeleccionada));
+
+var productos = [];
+if (_productosCache && _productosCache.length > 0) {
+  for (var pi = 0; pi < _productosCache.length; pi++) {
+    if (_productosCache[pi].qty > 0) {
+      productos.push({
+        idProducto     : String(_productosCache[pi].id || ''),
+        cantidad       : Number(_productosCache[pi].qty),
+        precioUnitario : Number(_productosCache[pi].precio)
+      });
+    }
+  }
+}
+
+
+    var selSrv  = document.getElementById('servicio');
+    var selEmp  = document.getElementById('empleado');
+var nombreSrv = selSrv.options[selSrv.selectedIndex]
+  ? (selSrv.options[selSrv.selectedIndex].dataset.nombre || selSrv.options[selSrv.selectedIndex].textContent)
+  : '';
+    var nombreEmp = selEmp.options[selEmp.selectedIndex] ? selEmp.options[selEmp.selectedIndex].textContent : '';
+    var totalActual = document.getElementById('resumen-total').textContent;
+
+    var btn = document.getElementById('btn-confirmar');
+    btn.disabled    = true;
+    btn.textContent = 'Procesando…';
+
+    google.script.run
+.withSuccessHandler(function(resp) {
+  btn.disabled    = false;
+  btn.textContent = 'Confirmar reserva';
+
+  var idCita  = (resp && resp.id)     ? resp.id     : resp;
+  var numCita = (resp && resp.numero) ? resp.numero : resp;
+
+  mostrarCardConfirmacion({
+    idCita   : numCita,
+    cliente  : nombreCliente,
+    servicio : nombreSrv,
+    empleado : nombreEmp,
+    fecha    : String(fecha),
+    hora     : horaSeleccionada ? String(horaSeleccionada.Hora_inicio || horaSeleccionada.hora_inicio || '') : '',
+    formaPago: formaPago,
+    total    : totalActual
+  });
+})
+      .withFailureHandler(function(error) {
+        mostrarMensaje('Error: ' + (error.message || error), 'error');
+        btn.disabled    = false;
+        btn.textContent = 'Confirmar reserva';
+      })
+.crearCitaPublica(
+  String(nombreCliente),
+  String(telefono),
+  String(idEmpleado),
+  String(idServicio),
+  String(idAgenda),
+  String(fecha),
+  String(horaSeleccionada ? (horaSeleccionada.Hora_inicio || horaSeleccionada.hora_inicio || '') : ''),
+  String(formaPago),
+  productos
+);
+  }
+
+  function mostrarMensaje(texto, tipo) {
+    var el = document.getElementById('mensaje');
+    el.textContent = texto;
+    el.className   = tipo;
+    if (texto) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }
+
+  /* ══ CONFIRMACIÓN ══ */
+  function mostrarCardConfirmacion(datos) {
+document.getElementById('conf-numero').textContent = '#' + datos.idCita;
+    document.getElementById('conf-cliente').textContent  = datos.cliente;
+    document.getElementById('conf-servicio').textContent = datos.servicio;
+    document.getElementById('conf-empleado').textContent = datos.empleado;
+    document.getElementById('conf-pago').textContent     = datos.formaPago;
+    document.getElementById('conf-total').textContent    = datos.total;
+
+var parts = String(datos.fecha).split('-');
+var fechaFormateada = parts.length === 3
+  ? new Date(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2]))
+      .toLocaleDateString('es-ES', { day: '2-digit', month: 'long', year: 'numeric' })
+  : datos.fecha;
+    document.getElementById('conf-fechahora').textContent = fechaFormateada + ' — ' + datos.hora;
+
+    document.getElementById('vista-formulario').style.display = 'none';
+
+    var vistaConf = document.getElementById('vista-confirmacion');
+    vistaConf.classList.remove('oculto');
+    vistaConf.style.display = 'block';
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+
+  function reiniciarFormulario() {
+    var vistaConf = document.getElementById('vista-confirmacion');
+    vistaConf.classList.add('oculto');
+    vistaConf.style.display = 'none';
+
+    document.getElementById('vista-formulario').style.display = 'block';
+    document.getElementById('nombreCliente').value = '';
+    document.getElementById('telefono').value      = '';
+    document.getElementById('horario').innerHTML   = '<option value="">Elige empleado y fecha</option>';
+    document.getElementById('formaPago').value     = 'Efectivo';
+
+    // Resetear chip de pago activo
+    document.querySelectorAll('.pago-chip').forEach(function(b) {
+      b.classList.toggle('activo', b.dataset.pago === 'Efectivo');
+    });
+
+    _productosCache.forEach(function(p) { p.qty = 0; });
+    renderProductos();
+    actualizarResumen();
+    actualizarProgreso();
+    mostrarMensaje('', '');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+</script>

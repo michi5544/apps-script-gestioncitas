@@ -1,0 +1,227 @@
+<style>
+  .chip-dato.stock-bajo {
+    background: #f8d7da;
+    color: #721c24;
+  }
+</style>
+
+<div class="titulo-vista">Productos</div>
+
+<div class="form-card" id="form-producto-card">
+  <input type="hidden" id="producto-id">
+
+  <div class="form-card-header">
+    <span id="form-producto-titulo">Nuevo producto</span>
+    <button class="btn-form-cancelar" id="btn-cancelar-producto"
+            onclick="limpiarFormProducto()" style="display:none;">
+      ✕ Cancelar
+    </button>
+  </div>
+
+  <div class="form-grid">
+    <div class="form-field full">
+      <label class="field-label">Título</label>
+      <input type="text" id="producto-titulo" placeholder="Nombre del producto">
+    </div>
+    <div class="form-field full">
+      <label class="field-label">Sub-título</label>
+      <input type="text" id="producto-subtitulo" placeholder="Marca o categoría (opcional)">
+    </div>
+    <div class="form-field full">
+      <label class="field-label">Descripción</label>
+      <textarea id="producto-descripcion" rows="2"
+                placeholder="Descripción breve (opcional)"></textarea>
+    </div>
+    <div class="form-field">
+      <label class="field-label">Stock</label>
+      <input type="number" id="producto-cantidad" placeholder="0" min="0">
+    </div>
+    <div class="form-field">
+      <label class="field-label">Precio ($)</label>
+      <input type="number" id="producto-precio" placeholder="0.00" step="0.01" min="0">
+    </div>
+  </div>
+
+  <div id="form-producto-feedback" class="form-feedback oculto"></div>
+
+  <button class="btn-guardar" id="btn-guardar-producto" onclick="guardarProducto()">
+    Guardar producto
+  </button>
+</div>
+
+<div id="lista-productos"></div>
+
+<script>
+  function _escProd(str) {
+    return String(str == null ? '' : str)
+      .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+
+  function cargarProductosAdmin() {
+    google.script.run
+      .withSuccessHandler(renderProductosAdmin)
+      .withFailureHandler(function(err) {
+        document.getElementById('lista-productos').innerHTML =
+          '<p style="color:red;text-align:center;">Error al cargar: ' + (err.message || err) + '</p>';
+      })
+      .obtenerProductos();
+  }
+
+function renderProductosAdmin(productos) {
+  var div = document.getElementById('lista-productos');
+  div.innerHTML = '';
+
+  if (!productos || productos.length === 0) {
+    div.innerHTML = '<p style="text-align:center;color:#aaa;padding:24px 0;">Sin productos registrados</p>';
+    return;
+  }
+
+  var frag = document.createDocumentFragment();
+
+  for (var i = 0; i < productos.length; i++) {
+    var p = productos[i];
+
+    // Normalizar campos Firestore (snake_case) y Sheets (PascalCase)
+    var id       = p.id            || p.ID_Producto    || '';
+    var titulo   = p.titulo        || p.Titulo         || '';
+    var subtitulo= p.sub_titulo    || p.Sub_titulo     || '';
+    var desc     = p.descripcion   || p.Descripcion    || '';
+    var cantidad = p.cantidad_stock|| p.Cantidad_stock || 0;
+    var precio   = p.precio        || p.Precio         || 0;
+
+    var claseStock = (Number(cantidad) <= 3)
+                   ? 'chip-dato stock stock-bajo'
+                   : 'chip-dato stock';
+
+    var card = document.createElement('div');
+    card.className = 'servicio-card';
+    card.setAttribute('data-id',       id);
+    card.setAttribute('data-titulo',   titulo);
+    card.setAttribute('data-sub',      subtitulo);
+    card.setAttribute('data-desc',     desc);
+    card.setAttribute('data-cantidad', cantidad);
+    card.setAttribute('data-precio',   precio);
+
+    card.innerHTML = '<div class="servicio-top">'
+      + '<div>'
+      +   '<div class="servicio-nombre">' + _escProd(titulo) + '</div>'
+      +   (subtitulo ? '<div class="servicio-desc">' + _escProd(subtitulo) + '</div>' : '')
+      + '</div>'
+      + '<div class="servicio-acciones">'
+      +   '<button style="background:#fff7e6;" title="Editar">✏️</button>'
+      +   '<button style="background:#fdf0f0;" title="Eliminar">🗑️</button>'
+      + '</div>'
+      + '</div>'
+      + (desc ? '<div class="servicio-desc" style="margin-bottom:6px;">' + _escProd(desc) + '</div>' : '')
+      + '<div class="servicio-chips">'
+      +   '<span class="chip-dato precio">$' + Number(precio).toFixed(2) + '</span>'
+      +   '<span class="' + claseStock + '">Stock: ' + _escProd(cantidad) + '</span>'
+      + '</div>';
+
+    (function(c) {
+      c.querySelectorAll('button')[0].addEventListener('click', function() {
+        editarProductoForm({
+          ID_Producto    : c.getAttribute('data-id'),
+          Titulo         : c.getAttribute('data-titulo'),
+          Sub_titulo     : c.getAttribute('data-sub'),
+          Descripcion    : c.getAttribute('data-desc'),
+          Cantidad_stock : c.getAttribute('data-cantidad'),
+          Precio         : c.getAttribute('data-precio')
+        });
+      });
+      c.querySelectorAll('button')[1].addEventListener('click', function() {
+        eliminarProductoAdmin(c.getAttribute('data-id'));
+      });
+    })(card);
+
+    frag.appendChild(card);
+  }
+
+  div.appendChild(frag);
+}
+
+  function setFeedbackProd(tipo, texto) {
+    var el = document.getElementById('form-producto-feedback');
+    el.className   = 'form-feedback ' + tipo;
+    el.textContent = texto;
+  }
+
+  function guardarProducto() {
+    var id          = document.getElementById('producto-id').value;
+    var titulo      = document.getElementById('producto-titulo').value.trim();
+    var subtitulo   = document.getElementById('producto-subtitulo').value.trim();
+    var descripcion = document.getElementById('producto-descripcion').value.trim();
+    var cantidad    = Number(document.getElementById('producto-cantidad').value);
+    var precio      = Number(document.getElementById('producto-precio').value);
+
+    if (!titulo) {
+      setFeedbackProd('error', 'El título es obligatorio.'); return;
+    }
+    if (!precio || precio <= 0) {
+      setFeedbackProd('error', 'El precio debe ser mayor a 0.'); return;
+    }
+
+    var btn = document.getElementById('btn-guardar-producto');
+    btn.disabled    = true;
+    btn.textContent = 'Guardando…';
+    setFeedbackProd('cargando', 'Guardando, espera un momento…');
+
+    var onExito = function() {
+      btn.disabled    = false;
+      btn.textContent = 'Guardar producto';
+      setFeedbackProd('exito', '✓ Producto guardado correctamente.');
+      limpiarFormProducto();
+      cargarProductosAdmin();
+    };
+
+    var onError = function(err) {
+      btn.disabled    = false;
+      btn.textContent = 'Guardar producto';
+      setFeedbackProd('error', 'Error: ' + (err.message || err));
+    };
+
+    if (id) {
+      google.script.run
+        .withSuccessHandler(onExito).withFailureHandler(onError)
+        .editarProducto(Number(id), titulo, subtitulo, descripcion, cantidad, precio);
+    } else {
+      google.script.run
+        .withSuccessHandler(onExito).withFailureHandler(onError)
+        .agregarProducto(titulo, subtitulo, descripcion, cantidad, precio);
+    }
+  }
+
+  function editarProductoForm(p) {
+    document.getElementById('producto-id').value          = p.ID_Producto    || '';
+    document.getElementById('producto-titulo').value      = p.Titulo         || '';
+    document.getElementById('producto-subtitulo').value   = p.Sub_titulo     || '';
+    document.getElementById('producto-descripcion').value = p.Descripcion    || '';
+    document.getElementById('producto-cantidad').value    = p.Cantidad_stock || '';
+    document.getElementById('producto-precio').value      = p.Precio         || '';
+
+    document.getElementById('form-producto-titulo').textContent    = 'Editar producto';
+    document.getElementById('btn-cancelar-producto').style.display = 'inline-flex';
+    setFeedbackProd('oculto', '');
+    document.getElementById('form-producto-card')
+            .scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+
+  function limpiarFormProducto() {
+    var ids = ['producto-id', 'producto-titulo', 'producto-subtitulo',
+               'producto-descripcion', 'producto-cantidad', 'producto-precio'];
+    for (var i = 0; i < ids.length; i++) {
+      document.getElementById(ids[i]).value = '';
+    }
+    document.getElementById('form-producto-titulo').textContent    = 'Nuevo producto';
+    document.getElementById('btn-cancelar-producto').style.display = 'none';
+    setFeedbackProd('oculto', '');
+  }
+
+  function eliminarProductoAdmin(id) {
+    if (!confirm('¿Eliminar este producto?')) return;
+    google.script.run
+      .withSuccessHandler(cargarProductosAdmin)
+      .withFailureHandler(function(err) { alert('Error: ' + (err.message || err)); })
+      .eliminarProducto(id);
+  }
+</script>

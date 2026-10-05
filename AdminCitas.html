@@ -1,0 +1,453 @@
+<div class="titulo-vista">Citas</div>
+
+<div class="citas-toolbar">
+  <div class="filtro-citas">
+    <button class="filtro-chip activo" data-estado="" onclick="filtrarPorChip(this, '')">Todas</button>
+    <button class="filtro-chip" data-estado="Pendiente"  onclick="filtrarPorChip(this, 'Pendiente')">Pendientes</button>
+    <button class="filtro-chip" data-estado="Confirmada" onclick="filtrarPorChip(this, 'Confirmada')">Confirmadas</button>
+    <button class="filtro-chip" data-estado="Completada" onclick="filtrarPorChip(this, 'Completada')">Completadas</button>
+    <button class="filtro-chip" data-estado="Cancelada"  onclick="filtrarPorChip(this, 'Cancelada')">Canceladas</button>
+  </div>
+  <button class="btn-refresh" id="btn-refresh" onclick="recargarCitas()" title="Actualizar citas">
+    ↻ Actualizar
+  </button>
+</div>
+
+<div class="citas-meta" id="citas-meta"></div>
+
+<div id="citas-skeleton" class="skeleton-wrapper" aria-hidden="true">
+  <div class="skeleton-card"></div>
+  <div class="skeleton-card"></div>
+  <div class="skeleton-card"></div>
+</div>
+
+<div id="lista-citas" aria-live="polite"></div>
+
+<!-- ══ MODAL: Cancelar cita ══ -->
+<div class="modal-overlay oculto" id="modal-cancelar">
+  <div class="modal-card">
+    <div class="modal-icono">🗑️</div>
+    <h3 class="modal-titulo">¿Cancelar esta cita?</h3>
+    <p class="modal-sub" id="modal-cancelar-cliente">—</p>
+    <div class="modal-acciones">
+      <button class="modal-btn modal-btn-secundario" onclick="cerrarModalCancelar()">No, mantener</button>
+      <button class="modal-btn modal-btn-peligro"    onclick="confirmarCancelacion()">Sí, cancelar</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══ MODAL: WhatsApp ══ -->
+<div class="modal-overlay oculto" id="modal-whatsapp">
+  <div class="modal-card">
+    <div class="modal-icono">💬</div>
+    <h3 class="modal-titulo">Cita cancelada</h3>
+    <p class="modal-sub">¿Deseas avisarle al cliente por WhatsApp?</p>
+    <div class="modal-cliente-info" id="modal-whatsapp-info">
+      <span class="modal-cliente-nombre" id="wa-nombre">—</span>
+      <span class="modal-cliente-tel"    id="wa-telefono">—</span>
+    </div>
+    <div class="modal-acciones">
+      <button class="modal-btn modal-btn-secundario" onclick="cerrarModalWhatsapp()">No, gracias</button>
+      <button class="modal-btn modal-btn-whatsapp"   onclick="abrirWhatsapp()">💬 Sí, contactar</button>
+    </div>
+  </div>
+</div>
+
+<style>
+  .modal-overlay {
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(0,0,0,0.45);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+    padding: 20px;
+  }
+  .modal-overlay.oculto { display: none; }
+
+  .modal-card {
+    background: white;
+    border-radius: 16px;
+    padding: 24px 20px;
+    max-width: 340px;
+    width: 100%;
+    text-align: center;
+    box-shadow: 0 8px 30px rgba(0,0,0,0.2);
+  }
+
+  .modal-icono  { font-size: 36px; margin-bottom: 8px; }
+
+  .modal-titulo {
+    font-size: 17px;
+    font-weight: 700;
+    color: #222;
+    margin: 0 0 6px;
+  }
+
+  .modal-sub {
+    font-size: 13px;
+    color: #888;
+    margin: 0 0 16px;
+  }
+
+  .modal-cliente-info {
+    background: #f4f4f4;
+    border-radius: 10px;
+    padding: 10px 14px;
+    margin-bottom: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+
+  .modal-cliente-nombre { font-size: 14px; font-weight: 700; color: #333; }
+  .modal-cliente-tel    { font-size: 13px; color: #666; }
+
+  .modal-acciones { display: flex; gap: 8px; }
+
+  .modal-btn {
+    flex: 1;
+    padding: 10px;
+    border: none;
+    border-radius: 8px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    margin: 0;
+  }
+
+  .modal-btn-secundario       { background: #f0f0f0; color: #666; }
+  .modal-btn-secundario:hover { background: #e5e5e5; }
+  .modal-btn-peligro          { background: #d9534f; color: white; }
+  .modal-btn-peligro:hover    { background: #c9433f; }
+  .modal-btn-whatsapp         { background: #25D366; color: white; }
+  .modal-btn-whatsapp:hover   { background: #1ebe5a; }
+
+  .btn-accion-confirmar { background: #5bc0de; color: white; border: none; border-radius: 8px; }
+  .btn-accion-completar { background: #5cb85c; color: white; border: none; border-radius: 8px; }
+</style>
+
+<script>
+(function () {
+  var _todasLasCitas   = [];
+  var _filtroActual    = '';
+  var _cargando        = false;
+  var _paginaActual    = 1;
+  var _hayMas          = false;
+  var _total           = 0;
+  var _idCitaPendiente = null;
+  var POR_PAGINA       = 30;
+
+  window.cargarCitasAdmin    = cargarCitasAdmin;
+  window.filtrarPorChip      = filtrarPorChip;
+  window.recargarCitas       = recargarCitas;
+  window.cambiarEstado       = cambiarEstado;
+  window.cancelarCitaAdmin   = cancelarCitaAdmin;
+  window.cerrarModalCancelar = cerrarModalCancelar;
+  window.confirmarCancelacion= confirmarCancelacion;
+  window.cerrarModalWhatsapp = cerrarModalWhatsapp;
+  window.abrirWhatsapp       = abrirWhatsapp;
+  window.cargarMasCitas      = cargarMasCitas;
+
+  document.addEventListener('DOMContentLoaded', cargarCitasAdmin);
+  if (document.readyState !== 'loading') cargarCitasAdmin();
+
+  function cargarCitasAdmin() {
+    if (_cargando) return;
+    _cargando      = true;
+    _paginaActual  = 1;
+    _todasLasCitas = [];
+    setRefreshEnabled(false);
+    mostrarSkeleton(true);
+    limpiarLista();
+
+    google.script.run
+      .withSuccessHandler(onCitasRecibidas)
+      .withFailureHandler(onError)
+      .obtenerCitas(_filtroActual || null, 1, POR_PAGINA);
+  }
+
+  function cargarMasCitas() {
+    if (_cargando || !_hayMas) return;
+    _cargando = true;
+    _paginaActual++;
+    ocultarBotonMas();
+
+    google.script.run
+      .withSuccessHandler(onMasCitasRecibidas)
+      .withFailureHandler(onError)
+      .obtenerCitas(_filtroActual || null, _paginaActual, POR_PAGINA);
+  }
+
+  function recargarCitas() {
+    _filtroActual = '';
+    document.querySelectorAll('.filtro-chip').forEach(function(b) {
+      b.classList.toggle('activo', b.dataset.estado === '');
+    });
+    cargarCitasAdmin();
+  }
+
+  function onCitasRecibidas(resp) {
+    _todasLasCitas = resp.citas || [];
+    _hayMas        = resp.hayMas;
+    _total         = resp.total;
+    _cargando      = false;
+    mostrarSkeleton(false);
+    setRefreshEnabled(true);
+    renderizarCitas(true);
+  }
+
+  function onMasCitasRecibidas(resp) {
+    _todasLasCitas = _todasLasCitas.concat(resp.citas || []);
+    _hayMas        = resp.hayMas;
+    _total         = resp.total;
+    _cargando      = false;
+    renderizarCitas(false);
+  }
+
+  function onError(error) {
+    _cargando = false;
+    mostrarSkeleton(false);
+    setRefreshEnabled(true);
+    document.getElementById('lista-citas').innerHTML =
+      '<p style="color:red;text-align:center;">Error: ' + (error && error.message ? error.message : error) + '</p>';
+  }
+
+  function filtrarPorChip(btn, estado) {
+    document.querySelectorAll('.filtro-chip').forEach(function(b) { b.classList.remove('activo'); });
+    btn.classList.add('activo');
+    _filtroActual = estado;
+    cargarCitasAdmin();
+  }
+
+  function renderizarCitas(limpiar) {
+    var lista = document.getElementById('lista-citas');
+    var meta  = document.getElementById('citas-meta');
+
+    if (limpiar) lista.innerHTML = '';
+    ocultarBotonMas();
+
+    if (_todasLasCitas.length === 0) {
+      meta.textContent = '';
+      lista.innerHTML  = '<p style="text-align:center;color:#999;padding:32px 0;">Sin citas para este filtro</p>';
+      return;
+    }
+
+    meta.textContent = 'Mostrando ' + _todasLasCitas.length + ' de ' + _total
+      + ' cita' + (_total !== 1 ? 's' : '');
+
+    var desde = limpiar ? 0 : _todasLasCitas.length - POR_PAGINA;
+    if (desde < 0) desde = 0;
+
+    var frag = document.createDocumentFragment();
+    for (var i = limpiar ? 0 : desde; i < _todasLasCitas.length; i++) {
+      frag.appendChild(crearCardCita(_todasLasCitas[i]));
+    }
+    lista.appendChild(frag);
+
+    if (_hayMas) mostrarBotonMas();
+  }
+
+function crearCardCita(c) {
+  // Normalizar campos snake_case y PascalCase
+  var nombreCliente  = c.Nombre_Cliente  || c.nombre_cliente  || '';
+  var estado         = c.Estado          || c.estado          || '';
+  var fecha          = c.Fecha           || c.fecha           || '';
+  var hora           = c.Hora            || c.hora            || '';
+  var nombreServicio = c.Nombre_Servicio || c.nombre_servicio || '';
+  var nombreEmpleado = c.Nombre_Empleado || c.nombre_empleado || '';
+  var formaPago      = c.Forma_pago      || c.forma_pago      || '';
+  var total          = c.Total           || c.total           || 0;
+  var productos      = c.Productos       || c.productos       || [];
+
+  var card = document.createElement('div');
+  card.className = 'card-cita';
+  card.innerHTML = '<div class="cita-header">'
+    + '<span class="cita-cliente">'  + escHTML(nombreCliente) + '</span>'
+    + '<span class="cita-estado estado-' + escHTML(estado.toLowerCase()) + '">' + escHTML(estado) + '</span>'
+    + '</div>'
+    + '<div class="cita-detalle"><span class="etiqueta">Fecha</span><span>'    + escHTML(formatearFechaDisplay(fecha))  + '</span></div>'
+    + '<div class="cita-detalle"><span class="etiqueta">Hora</span><span>'     + escHTML(hora)                          + '</span></div>'
+    + '<div class="cita-detalle"><span class="etiqueta">Servicio</span><span>' + escHTML(nombreServicio)                + '</span></div>'
+    + '<div class="cita-detalle"><span class="etiqueta">Empleado</span><span>' + escHTML(nombreEmpleado)                + '</span></div>'
+    + '<div class="cita-detalle"><span class="etiqueta">Pago</span><span>'     + escHTML(formaPago)                     + '</span></div>'
+    + '<div class="cita-detalle"><span class="etiqueta">Total</span>'
+    +   '<span class="cita-total">$' + Number(total).toFixed(2) + '</span></div>'
+    + (productos && productos.length > 0
+        ? '<div class="cita-detalle" style="flex-direction:column;align-items:flex-start;gap:4px;">'
+          + '<span class="etiqueta" style="margin-bottom:2px;">Productos</span>'
+          + productos.map(function(p) {
+              var titulo   = p.Titulo   || p.titulo   || 'Producto';
+              var cantidad = p.Cantidad || p.cantidad || 0;
+              var subtotal = p.Subtotal || p.subtotal || 0;
+              return '<span style="font-size:13px;color:#555;">'
+                + escHTML(titulo) + ' ×' + cantidad
+                + ' — $' + Number(subtotal).toFixed(2) + '</span>';
+            }).join('')
+          + '</div>'
+        : '')
+    + '<div class="cita-acciones">' + botonesEstado(c) + '</div>';
+  return card;
+}
+
+function botonesEstado(c) {
+  var estado = c.Estado || c.estado || '';
+  var idCita = c.ID_Cita || c.id || '';
+
+  if (estado === 'Cancelada' || estado === 'Completada') return '';
+  var btns = '';
+  if (estado === 'Pendiente') {
+    btns += '<button class="btn-accion-confirmar" onclick="cambiarEstado(\'' + idCita + '\', \'Confirmada\')">Confirmar</button>';
+  }
+  if (estado === 'Confirmada') {
+    btns += '<button class="btn-accion-completar" onclick="cambiarEstado(\'' + idCita + '\', \'Completada\')">Completar</button>';
+  }
+  btns += '<button class="btn-eliminar" onclick="cancelarCitaAdmin(\'' + idCita + '\')">Cancelar</button>';
+  return btns;
+}
+
+  function cambiarEstado(idCita, nuevoEstado) {
+    var cita = null;
+    for (var i = 0; i < _todasLasCitas.length; i++) {
+      if (_todasLasCitas[i].ID_Cita === idCita) { cita = _todasLasCitas[i]; break; }
+    }
+    if (cita) { cita.Estado = nuevoEstado; renderizarCitas(true); }
+    google.script.run
+      .withSuccessHandler(function() {})
+      .withFailureHandler(function() { cargarCitasAdmin(); })
+      .cambiarEstadoCita(idCita, nuevoEstado);
+  }
+
+function cancelarCitaAdmin(idCita) {
+  var cita = null;
+  for (var i = 0; i < _todasLasCitas.length; i++) {
+    var c   = _todasLasCitas[i];
+    var cId = c.ID_Cita || c.id || '';
+    if (String(cId) === String(idCita)) { cita = c; break; }
+  }
+  if (!cita) return;
+  _idCitaPendiente = idCita;
+  var nombreCli = cita.Nombre_Cliente || cita.nombre_cliente || '';
+  var fecha     = cita.Fecha          || cita.fecha          || '';
+  var hora      = cita.Hora           || cita.hora           || '';
+  document.getElementById('modal-cancelar-cliente').textContent =
+    nombreCli + ' — ' + formatearFechaDisplay(fecha) + ' ' + hora;
+  document.getElementById('modal-cancelar').classList.remove('oculto');
+}
+
+function confirmarCancelacion() {
+  var idCita = _idCitaPendiente;
+  var cita   = null;
+  for (var i = 0; i < _todasLasCitas.length; i++) {
+    var c   = _todasLasCitas[i];
+    var cId = c.ID_Cita || c.id || '';
+    if (String(cId) === String(idCita)) { cita = c; break; }
+  }
+  if (!cita) { cerrarModalCancelar(); return; }
+
+  document.getElementById('modal-cancelar').classList.add('oculto');
+  if (cita.Estado !== undefined) cita.Estado = 'Cancelada';
+  if (cita.estado !== undefined) cita.estado = 'Cancelada';
+  renderizarCitas(true);
+
+  google.script.run
+    .withSuccessHandler(function() {})
+    .withFailureHandler(function() { cargarCitasAdmin(); })
+    .cancelarCita(idCita);
+
+  var nombre   = cita.Nombre_Cliente  || cita.nombre_cliente  || '';
+  var telefono = cita.Telefono        || cita.telefono        || '';
+  var fecha    = cita.Fecha           || cita.fecha           || '';
+  var hora     = cita.Hora            || cita.hora            || '';
+
+  document.getElementById('wa-nombre').textContent   = nombre;
+  document.getElementById('wa-telefono').textContent = '📞 ' + (telefono || 'Sin teléfono');
+  var modal = document.getElementById('modal-whatsapp');
+  modal.dataset.telefono = telefono;
+  modal.dataset.nombre   = nombre;
+  modal.dataset.fecha    = formatearFechaDisplay(fecha);
+  modal.dataset.hora     = hora;
+  modal.classList.remove('oculto');
+  _idCitaPendiente = null;
+}
+
+  function cerrarModalCancelar() {
+    _idCitaPendiente = null;
+    document.getElementById('modal-cancelar').classList.add('oculto');
+  }
+
+  function cerrarModalWhatsapp() {
+    document.getElementById('modal-whatsapp').classList.add('oculto');
+  }
+
+  function abrirWhatsapp() {
+    var modal    = document.getElementById('modal-whatsapp');
+    var telefono = modal.dataset.telefono;
+    var nombre   = modal.dataset.nombre;
+    var fecha    = modal.dataset.fecha;
+    var hora     = modal.dataset.hora;
+
+    if (!telefono) {
+      alert('Este cliente no tiene teléfono registrado.');
+      cerrarModalWhatsapp();
+      return;
+    }
+
+    var numero = telefono.toString().replace(/\D/g, '');
+    if (numero.length === 8) numero = '503' + numero;
+
+    var mensaje = 'Hola ' + nombre + ', te escribimos para avisarte que tu cita del '
+      + fecha + ' a las ' + hora + ' ha sido cancelada. Si deseas reagendar, contáctanos. ¡Gracias!';
+
+    window.open('https://wa.me/' + numero + '?text=' + encodeURIComponent(mensaje), '_blank');
+    cerrarModalWhatsapp();
+  }
+
+function formatearFechaDisplay(fecha) {
+  if (!fecha) return '';
+  var parts = String(fecha).split('T')[0].split('-');
+  if (parts.length !== 3) return String(fecha);
+  var d = new Date(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2]));
+  return d.toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric' });
+}
+
+  function escHTML(str) {
+    return String(str == null ? '' : str)
+      .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+
+  function mostrarBotonMas() {
+    var existing = document.getElementById('btn-cargar-mas');
+    if (existing) { existing.style.display = 'block'; return; }
+    var btn = document.createElement('button');
+    btn.id            = 'btn-cargar-mas';
+    btn.textContent   = 'Cargar más citas';
+    btn.onclick       = cargarMasCitas;
+    btn.style.cssText = 'display:block;width:100%;padding:12px;margin:12px 0;background:white;'
+      + 'border:1px solid #ddd;border-radius:10px;font-size:14px;font-weight:600;color:#4a90d9;cursor:pointer;';
+    document.getElementById('lista-citas').appendChild(btn);
+  }
+
+  function ocultarBotonMas() {
+    var btn = document.getElementById('btn-cargar-mas');
+    if (btn) btn.style.display = 'none';
+  }
+
+  function mostrarSkeleton(visible) {
+    var sk = document.getElementById('citas-skeleton');
+    if (sk) sk.style.display = visible ? 'flex' : 'none';
+  }
+
+  function limpiarLista() {
+    document.getElementById('lista-citas').innerHTML   = '';
+    document.getElementById('citas-meta').textContent  = '';
+  }
+
+  function setRefreshEnabled(enabled) {
+    var btn = document.getElementById('btn-refresh');
+    if (btn) btn.disabled = !enabled;
+  }
+
+})();
+</script>

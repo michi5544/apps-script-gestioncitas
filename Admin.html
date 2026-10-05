@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <base target="_top">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <?!= include('Styles'); ?>
+  <?!= include('StylesAdmin'); ?>
+  
+</head>
+<body>
+  <div class="admin-container">
+<div id="vista-citas"     class="vista activa"><?!= include('AdminCitas'); ?></div>
+<div id="vista-agenda"    class="vista"><?!= include('AdminAgenda'); ?></div>
+<div id="vista-servicios" class="vista"><?!= include('AdminServicios'); ?></div>
+<div id="vista-productos" class="vista"><?!= include('AdminProductos'); ?></div>
+<div id="vista-empleados" class="vista"><?!= include('AdminEmpleados'); ?></div>
+<div id="vista-clientes"  class="vista"><?!= include('AdminClientes'); ?></div>
+<div id="vista-reportes"  class="vista"><?!= include('AdminReportes'); ?></div>
+  </div>
+
+  <nav class="bottom-nav" aria-label="Navegación principal">
+    <div class="nav-modules" id="nav-modules">
+      <span class="nav-modules-label">Módulos</span>
+      <div class="modules-scroll">
+        <button class="mod-chip" data-vista="servicios" onclick="cambiarVista('servicios')" aria-label="Servicios">✂️ Servicios</button>
+        <button class="mod-chip" data-vista="productos" onclick="cambiarVista('productos')" aria-label="Productos">📦 Productos</button>
+        <button class="mod-chip" data-vista="empleados" onclick="cambiarVista('empleados')" aria-label="Empleados">👤 Empleados</button>
+        <button class="mod-chip" data-vista="clientes"  onclick="cambiarVista('clientes')"  aria-label="Clientes">🧑‍🤝‍🧑 Clientes</button>
+        <button class="mod-chip" data-vista="reportes"  onclick="cambiarVista('reportes')"  aria-label="Reportes">📊 Reportes</button>
+      </div>
+    </div>
+    <div class="nav-divider"></div>
+    <div class="nav-primary">
+      <button class="nav-btn" data-vista="citas" onclick="cambiarVista('citas')" aria-label="Citas">
+        <span class="nav-icono">📅</span>
+        <span>Citas</span>
+      </button>
+      <button class="nav-btn" data-vista="agenda" onclick="cambiarVista('agenda')" aria-label="Agenda">
+        <span class="nav-icono">🕒</span>
+        <span>Agenda</span>
+      </button>
+      <button class="nav-btn nav-btn--toggle" id="btn-toggle-modulos"
+              onclick="toggleModulos()" aria-label="Módulos" aria-expanded="true">
+        <span class="nav-icono">⚙️</span>
+        <span>Módulos</span>
+      </button>
+    </div>
+  </nav>
+
+  <?!= include('JavaScriptAdmin'); ?>
+</body>
+</html>

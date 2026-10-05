@@ -1,0 +1,56 @@
+<script>
+(function () {
+  var VISTAS_PRIMARIAS = { citas: true, agenda: true };
+
+  var LOADERS = {
+    servicios : function() { if (typeof cargarServiciosAdmin === 'function') cargarServiciosAdmin(); },
+    productos : function() { if (typeof cargarProductosAdmin === 'function') cargarProductosAdmin(); },
+    empleados : function() { if (typeof cargarEmpleadosAdmin === 'function') cargarEmpleadosAdmin(); },
+    clientes  : function() { if (typeof cargarClientesAdmin  === 'function') cargarClientesAdmin(); },
+    citas     : function() { if (typeof cargarCitasAdmin     === 'function') cargarCitasAdmin(); },
+    agenda    : function() { if (typeof cargarAgendaAdmin    === 'function') cargarAgendaAdmin(); },
+    reportes  : function() { if (typeof cargarReportesAdmin  === 'function') cargarReportesAdmin(); }
+  };
+
+  function cambiarVista(nombre) {
+    // Ocultar todas las vistas
+    document.querySelectorAll('.vista').forEach(function(v) {
+      v.classList.remove('activa');
+    });
+    var target = document.getElementById('vista-' + nombre);
+    if (target) target.classList.add('activa');
+
+    // Marcar chip de módulo activo
+    document.querySelectorAll('.mod-chip').forEach(function(b) {
+      b.classList.toggle('activo', b.dataset.vista === nombre);
+    });
+
+    // Marcar botón primario activo
+    document.querySelectorAll('.nav-btn[data-vista]').forEach(function(b) {
+      b.classList.toggle('activo', b.dataset.vista === nombre);
+    });
+
+    // Botón toggle: se ilumina cuando la vista es un módulo
+    var btnToggle = document.getElementById('btn-toggle-modulos');
+    if (btnToggle) {
+      btnToggle.classList.toggle('modulo-activo', !VISTAS_PRIMARIAS[nombre]);
+    }
+
+    // Invocar loader si existe
+    if (LOADERS[nombre]) LOADERS[nombre]();
+  }
+
+  function toggleModulos() {
+    var panel = document.getElementById('nav-modules');
+    var btn   = document.getElementById('btn-toggle-modulos');
+    if (!panel) return;
+    var oculto = panel.classList.toggle('oculto');
+    if (btn) btn.setAttribute('aria-expanded', String(!oculto));
+  }
+
+  window.cambiarVista  = cambiarVista;
+  window.toggleModulos = toggleModulos;
+
+  window.addEventListener('load', function() { cambiarVista('citas'); });
+})();
+</script>

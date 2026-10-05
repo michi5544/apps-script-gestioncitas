@@ -17,9 +17,9 @@ function _serializarHora(valor) {
 // ══════════════════════════════════════════════════════════
 //  LEER CITAS
 // ══════════════════════════════════════════════════════════
-function obtenerCitas(filtroEstado, pagina, porPagina) {
-  pagina    = pagina    || 1;
-  porPagina = porPagina || 30;
+function obtenerCitas(filtroEstado, pagina, porPagina, fechaDesde, fechaHasta) {
+  pagina    = Math.max(1, Number(pagina) || 1);
+  porPagina = Math.min(100, Math.max(1, Number(porPagina) || 30));
 
   // Tablas de apoyo con caché
   var clientes  = getCacheData('clientes')  || fsGetAll('clientes');
@@ -37,9 +37,20 @@ function obtenerCitas(filtroEstado, pagina, porPagina) {
     ? fsQuery('citas', 'estado', 'EQUAL', filtroEstado)
     : fsGetAll('citas');
 
-  // Ordenar por fecha_registro descendente
+  // Filtro por rango de fechas (yyyy-MM-dd, inclusivo)
+  if (fechaDesde || fechaHasta) {
+    citas = citas.filter(function(c) {
+      var f = _serializarFecha(c.fecha);
+      return (!fechaDesde || f >= fechaDesde) && (!fechaHasta || f <= fechaHasta);
+    });
+  }
+
+  // Ordenar por fecha y hora de la cita, más recientes primero
   citas.sort(function(a, b) {
-    return String(b.fecha_registro) > String(a.fecha_registro) ? 1 : -1;
+    var ka = _serializarFecha(a.fecha) + ' ' + _serializarHora(a.hora);
+    var kb = _serializarFecha(b.fecha) + ' ' + _serializarHora(b.hora);
+    if (ka === kb) return String(b.fecha_registro) > String(a.fecha_registro) ? 1 : -1;
+    return kb > ka ? 1 : -1;
   });
 
   var total  = citas.length;
@@ -96,7 +107,8 @@ function obtenerCitas(filtroEstado, pagina, porPagina) {
     citas  : resultado,
     total  : total,
     pagina : pagina,
-    hayMas : (inicio + porPagina) < total
+    hayMas : (inicio + porPagina) < total,
+    totalPaginas : Math.max(1, Math.ceil(total / porPagina))
   };
 }
 

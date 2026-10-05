@@ -19,18 +19,15 @@
   </div>
 
   <nav class="bottom-nav" aria-label="Navegación principal">
-    <div class="nav-modules" id="nav-modules">
-      <span class="nav-modules-label">Módulos</span>
+    <div class="nav-modules oculto" id="nav-modules">
+      <span class="nav-modules-label">Más módulos</span>
       <div class="modules-scroll">
         <button class="mod-chip" data-vista="servicios" onclick="cambiarVista('servicios')" aria-label="Servicios">✂️ Servicios</button>
         <button class="mod-chip" data-vista="productos" onclick="cambiarVista('productos')" aria-label="Productos">📦 Productos</button>
         <button class="mod-chip" data-vista="empleados" onclick="cambiarVista('empleados')" aria-label="Empleados">👤 Empleados</button>
-        <button class="mod-chip" data-vista="clientes"  onclick="cambiarVista('clientes')"  aria-label="Clientes">🧑‍🤝‍🧑 Clientes</button>
-        <button class="mod-chip" data-vista="reportes"  onclick="cambiarVista('reportes')"  aria-label="Reportes">📊 Reportes</button>
       </div>
     </div>
-    <div class="nav-divider"></div>
-    <div class="nav-primary">
+    <div class="nav-pill">
       <button class="nav-btn" data-vista="citas" onclick="cambiarVista('citas')" aria-label="Citas">
         <span class="nav-icono">📅</span>
         <span>Citas</span>
@@ -39,10 +36,17 @@
         <span class="nav-icono">🕒</span>
         <span>Agenda</span>
       </button>
-      <button class="nav-btn nav-btn--toggle" id="btn-toggle-modulos"
-              onclick="toggleModulos()" aria-label="Módulos" aria-expanded="true">
-        <span class="nav-icono">⚙️</span>
-        <span>Módulos</span>
+      <button class="nav-center" id="btn-toggle-modulos"
+              onclick="toggleModulos()" aria-label="Más módulos" aria-expanded="false">
+        <span class="nav-center-icono">+</span>
+      </button>
+      <button class="nav-btn" data-vista="clientes" onclick="cambiarVista('clientes')" aria-label="Clientes">
+        <span class="nav-icono">🧑‍🤝‍🧑</span>
+        <span>Clientes</span>
+      </button>
+      <button class="nav-btn" data-vista="reportes" onclick="cambiarVista('reportes')" aria-label="Reportes">
+        <span class="nav-icono">📊</span>
+        <span>Reportes</span>
       </button>
     </div>
   </nav>

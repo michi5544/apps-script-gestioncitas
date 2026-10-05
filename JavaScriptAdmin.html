@@ -1,6 +1,6 @@
 <script>
 (function () {
-  var VISTAS_PRIMARIAS = { citas: true, agenda: true };
+  var VISTAS_PRIMARIAS = { citas: true, agenda: true, clientes: true, reportes: true };
 
   var LOADERS = {
     servicios : function() { if (typeof cargarServiciosAdmin === 'function') cargarServiciosAdmin(); },
@@ -36,6 +36,10 @@
       btnToggle.classList.toggle('modulo-activo', !VISTAS_PRIMARIAS[nombre]);
     }
 
+    // Cerrar el panel de módulos al navegar
+    var panel = document.getElementById('nav-modules');
+    if (panel && !panel.classList.contains('oculto')) toggleModulos();
+
     // Invocar loader si existe
     if (LOADERS[nombre]) LOADERS[nombre]();
   }
@@ -47,6 +51,12 @@
     var oculto = panel.classList.toggle('oculto');
     if (btn) btn.setAttribute('aria-expanded', String(!oculto));
   }
+
+  document.addEventListener('click', function(e) {
+    var panel = document.getElementById('nav-modules');
+    if (!panel || panel.classList.contains('oculto')) return;
+    if (!e.target.closest('.nav-modules') && !e.target.closest('#btn-toggle-modulos')) toggleModulos();
+  });
 
   window.cambiarVista  = cambiarVista;
   window.toggleModulos = toggleModulos;

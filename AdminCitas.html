@@ -1,5 +1,37 @@
 <div class="titulo-vista">Citas</div>
 
+<div class="modo-toggle" role="tablist" aria-label="Vista de citas">
+  <button class="modo-btn activo" id="btn-modo-calendario" role="tab" onclick="cambiarModo('calendario')">📆 Calendario</button>
+  <button class="modo-btn"        id="btn-modo-lista"      role="tab" onclick="cambiarModo('lista')">☰ Lista</button>
+</div>
+
+<!-- ══ Vista calendario ══ -->
+<div id="modo-calendario">
+  <div class="cal-card">
+    <div class="cal-header">
+      <span class="cal-titulo" id="cal-titulo">—</span>
+      <div class="cal-nav">
+        <button class="cal-nav-btn cal-hoy" onclick="irAHoy()">Hoy</button>
+        <button class="cal-nav-btn" onclick="cambiarMes(-1)" aria-label="Mes anterior">‹</button>
+        <button class="cal-nav-btn" onclick="cambiarMes(1)"  aria-label="Mes siguiente">›</button>
+      </div>
+    </div>
+    <div class="cal-semana">
+      <span>Dom</span><span>Lun</span><span>Mar</span><span>Mié</span><span>Jue</span><span>Vie</span><span>Sáb</span>
+    </div>
+    <div class="cal-grid" id="cal-grid"></div>
+    <div class="cal-resumen" id="cal-resumen"></div>
+  </div>
+
+  <div class="dia-card">
+    <div class="dia-titulo" id="dia-titulo">—</div>
+    <div class="dia-sub"    id="dia-sub"></div>
+    <div id="dia-lista"></div>
+  </div>
+</div>
+
+<!-- ══ Vista lista ══ -->
+<div id="modo-lista" class="oculto">
 <div class="filtro-citas">
   <button class="filtro-chip activo" data-estado="" onclick="filtrarPorChip(this, '')">Todas</button>
   <button class="filtro-chip" data-estado="Pendiente"  onclick="filtrarPorChip(this, 'Pendiente')">Pendientes</button>
@@ -33,6 +65,7 @@
 <div id="lista-citas" aria-live="polite"></div>
 
 <div class="paginacion oculto" id="paginacion-citas"></div>
+</div>
 
 <!-- ══ MODAL: Cancelar cita ══ -->
 <div class="modal-overlay oculto" id="modal-cancelar">
@@ -244,6 +277,182 @@
   .paginacion button { width: auto; margin-top: 0; padding: 8px 14px; font-size: 13px; }
   .paginacion button:disabled { background: #e5e5e5; color: #999; cursor: not-allowed; }
   .pag-info { font-size: 13px; color: #666; min-width: 110px; text-align: center; }
+
+  /* ══ Selector de vista ══ */
+  .oculto { display: none !important; }
+
+  .modo-toggle {
+    display: inline-flex;
+    gap: 4px;
+    padding: 4px;
+    margin-bottom: 14px;
+    background: #e9edf5;
+    border-radius: 12px;
+  }
+  .modo-btn {
+    width: auto;
+    margin: 0;
+    padding: 8px 16px;
+    background: transparent;
+    color: #6b7280;
+    border-radius: 9px;
+    font-size: 13px;
+    font-weight: 700;
+  }
+  .modo-btn:hover  { background: rgba(255,255,255,.6); }
+  .modo-btn.activo { background: #fff; color: #1f2937; box-shadow: 0 1px 3px rgba(16,24,40,.12); }
+
+  /* ══ Calendario ══ */
+  .cal-card, .dia-card {
+    background: #fff;
+    border: 1px solid #e5e7eb;
+    border-radius: 16px;
+    box-shadow: 0 1px 2px rgba(16,24,40,.05), 0 4px 16px rgba(16,24,40,.06);
+    padding: 18px;
+    margin-bottom: 16px;
+  }
+  .cal-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; gap: 8px; }
+  .cal-titulo { font-size: 19px; font-weight: 700; color: #111827; letter-spacing: -0.01em; }
+  .cal-nav    { display: flex; gap: 6px; }
+  .cal-nav-btn {
+    width: 36px;
+    height: 34px;
+    margin: 0;
+    padding: 0;
+    background: #fff;
+    color: #111827;
+    border: 1px solid #e5e7eb;
+    border-radius: 9px;
+    font-size: 18px;
+    line-height: 1;
+  }
+  .cal-nav-btn:hover { background: #f3f4f6; }
+  .cal-nav-btn.cal-hoy { width: auto; padding: 0 12px; font-size: 13px; font-weight: 600; }
+
+  .cal-semana, .cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); }
+  .cal-semana span {
+    text-align: center;
+    font-size: 12px;
+    color: #9ca3af;
+    padding: 6px 0 8px;
+  }
+  .cal-grid { row-gap: 4px; }
+
+  .cal-dia {
+    position: relative;
+    width: 100%;
+    max-width: 52px;
+    height: 42px;
+    margin: 0 auto;
+    padding: 0;
+    background: transparent;
+    color: #111827;
+    border-radius: 10px;
+    font-size: 14px;
+    font-weight: 500;
+  }
+  .cal-dia:hover { background: #f3f4f6; }
+  .cal-dia.hoy   { box-shadow: inset 0 0 0 1.5px #4a90d9; font-weight: 700; }
+  .cal-dia.sel,
+  .cal-dia.sel:hover { background: #020617; color: #fff; box-shadow: none; }
+  .cal-dia.pasado { color: #9ca3af; }
+  .cal-dia.sel.pasado { color: #fff; }
+
+  .cal-puntos {
+    position: absolute;
+    left: 0; right: 0; bottom: 4px;
+    display: flex;
+    justify-content: center;
+    gap: 2px;
+  }
+  .cal-punto { width: 5px; height: 5px; border-radius: 50%; }
+  .punto-pendiente  { background: #f0ad00; }
+  .punto-confirmada { background: #2b7fff; }
+  .punto-completada { background: #00c950; }
+  .punto-vencida    { background: #9ca3af; }
+
+  .cal-resumen {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 8px;
+    margin-top: 14px;
+    font-size: 13px;
+    color: #6b7280;
+  }
+  .cal-badge {
+    min-width: 24px;
+    padding: 2px 8px;
+    text-align: center;
+    background: #eceff4;
+    color: #111827;
+    border-radius: 8px;
+    font-weight: 700;
+  }
+
+  .cal-cargando { opacity: .55; pointer-events: none; transition: opacity .15s; }
+
+  /* ══ Citas del día ══ */
+  .dia-titulo { font-size: 20px; font-weight: 700; color: #111827; letter-spacing: -0.01em; }
+  .dia-sub    { font-size: 14px; color: #6b7280; margin: 2px 0 14px; }
+
+  .dia-item { margin-bottom: 8px; }
+
+  .cita-fila {
+    width: 100%;
+    margin: 0;
+    padding: 11px 14px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    text-align: left;
+    border: 1px solid transparent;
+    border-radius: 10px;
+    font-weight: 600;
+    transition: filter .15s, transform .05s;
+  }
+  .cita-fila:hover  { filter: brightness(.96); }
+  .fila-izq   { display: flex; align-items: center; gap: 12px; min-width: 0; }
+  .fila-ico   { font-size: 16px; opacity: .9; flex-shrink: 0; }
+  .fila-texto { display: flex; flex-direction: column; min-width: 0; }
+  .fila-hora  { font-size: 16px; font-weight: 700; line-height: 1.2; }
+  .fila-sub   { font-size: 12px; font-weight: 600; opacity: .85; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .fila-cliente {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 14px;
+    font-weight: 700;
+    text-align: right;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .fila-pendiente  { background: #f0ad00; color: #1f1500; }
+  .fila-pendiente:hover  { background: #f0ad00; }
+  .fila-confirmada { background: #2b7fff; color: #fff; }
+  .fila-confirmada:hover { background: #2b7fff; }
+  .fila-completada { background: #00c950; color: #fff; }
+  .fila-completada:hover { background: #00c950; }
+  .fila-vencida,
+  .fila-cancelada  { background: #f3f4f6; color: #6b7280; border-color: #e5e7eb; }
+  .fila-vencida:hover,
+  .fila-cancelada:hover { background: #eceef1; }
+  .fila-cancelada .fila-cliente { text-decoration: line-through; }
+
+  .fila-detalle { margin-top: 6px; }
+  .fila-detalle .card-cita { margin-bottom: 4px; }
+
+  .dia-vacio { text-align: center; color: #9ca3af; padding: 26px 0 14px; font-size: 14px; }
+
+  @media (max-width: 420px) {
+    .cal-card, .dia-card { padding: 14px; }
+    .cal-dia { height: 40px; }
+    .fila-cliente { max-width: 45%; }
+  }
 </style>
 
 <script>
@@ -257,7 +466,16 @@
   var _idCitaPendiente = null;
   var POR_PAGINA       = 10;
 
-  window.cargarCitasAdmin     = function() { irAPagina(1); };
+  var _modo            = 'calendario';
+  var _mes             = { y: new Date().getFullYear(), m: new Date().getMonth() };
+  var _citasMes        = [];
+  var _diaSel          = null;
+  var _detalleAbierto  = null;
+  var _tokenMes        = 0;
+  var MESES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+  var DIAS  = ['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sábado'];
+
+  window.cargarCitasAdmin     = cargarVistaActual;
   window.filtrarPorChip       = filtrarPorChip;
   window.recargarCitas        = recargarCitas;
   window.cambiarEstado        = cambiarEstado;
@@ -271,9 +489,14 @@
   window.limpiarFechas        = limpiarFechas;
   window.irAPagina            = irAPagina;
   window.contactarCliente     = contactarCliente;
+  window.cambiarModo          = cambiarModo;
+  window.cambiarMes           = cambiarMes;
+  window.irAHoy               = irAHoy;
+  window.seleccionarDia       = seleccionarDia;
+  window.toggleDetalleCita    = toggleDetalleCita;
 
-  if (document.readyState !== 'loading') irAPagina(1);
-  else document.addEventListener('DOMContentLoaded', function() { irAPagina(1); });
+  if (document.readyState !== 'loading') cargarVistaActual();
+  else document.addEventListener('DOMContentLoaded', cargarVistaActual);
 
   function valorFecha(id) {
     var el = document.getElementById(id);
@@ -312,7 +535,8 @@
   }
 
   function recargarCitas() {
-    irAPagina(_paginaActual);
+    if (_modo === 'calendario') cargarMes();
+    else irAPagina(_paginaActual);
   }
 
   function onError(error) {
@@ -346,6 +570,189 @@
     document.getElementById('filtro-desde').value = '';
     document.getElementById('filtro-hasta').value = '';
     irAPagina(1);
+  }
+
+  /* ══ Calendario ══ */
+  function iso(y, m, d) {
+    return y + '-' + String(m + 1).padStart(2, '0') + '-' + String(d).padStart(2, '0');
+  }
+
+  function cargarVistaActual() {
+    if (_modo === 'calendario') cargarMes();
+    else irAPagina(1);
+  }
+
+  function cambiarModo(modo) {
+    if (modo === _modo) return;
+    _modo = modo;
+    document.getElementById('btn-modo-calendario').classList.toggle('activo', modo === 'calendario');
+    document.getElementById('btn-modo-lista').classList.toggle('activo', modo === 'lista');
+    document.getElementById('modo-calendario').classList.toggle('oculto', modo !== 'calendario');
+    document.getElementById('modo-lista').classList.toggle('oculto', modo !== 'lista');
+    cargarVistaActual();
+  }
+
+  function cambiarMes(delta) {
+    var d = new Date(_mes.y, _mes.m + delta, 1);
+    _mes = { y: d.getFullYear(), m: d.getMonth() };
+    _diaSel = null;
+    _detalleAbierto = null;
+    cargarMes();
+  }
+
+  function irAHoy() {
+    var hoy = new Date();
+    _mes = { y: hoy.getFullYear(), m: hoy.getMonth() };
+    _diaSel = fechaHoyISO();
+    _detalleAbierto = null;
+    cargarMes();
+  }
+
+  function seleccionarDia(fecha) {
+    _diaSel = fecha;
+    _detalleAbierto = null;
+    renderizarCalendario();
+  }
+
+  function cargarMes() {
+    var token = ++_tokenMes;
+    var desde = iso(_mes.y, _mes.m, 1);
+    var hasta = iso(_mes.y, _mes.m, new Date(_mes.y, _mes.m + 1, 0).getDate());
+    _citasMes = [];
+    setCalCargando(true);
+    renderizarCalendario();
+
+    function pedir(pagina) {
+      google.script.run
+        .withSuccessHandler(function(resp) {
+          if (token !== _tokenMes) return;
+          _citasMes = _citasMes.concat(resp.citas || []);
+          if (resp.hayMas) { pedir(pagina + 1); return; }
+          setCalCargando(false);
+          renderizarCalendario();
+        })
+        .withFailureHandler(function(error) {
+          if (token !== _tokenMes) return;
+          setCalCargando(false);
+          document.getElementById('dia-lista').innerHTML =
+            '<p style="color:#d9534f;text-align:center;">Error: ' + escHTML(error && error.message ? error.message : error) + '</p>';
+        })
+        .obtenerCitas(null, pagina, 100, desde, hasta);
+    }
+    pedir(1);
+  }
+
+  function setCalCargando(cargando) {
+    ['cal-grid', 'dia-lista'].forEach(function(id) {
+      var el = document.getElementById(id);
+      if (el) el.classList.toggle('cal-cargando', cargando);
+    });
+  }
+
+  // Clave visual de la cita: pendiente, confirmada, completada, cancelada o vencida
+  function claseEstado(c) {
+    if (esVencida(c)) return 'vencida';
+    return String(c.Estado || '').toLowerCase();
+  }
+
+  function textoEstado(c) {
+    var k = claseEstado(c);
+    return { vencida: 'Cita pasada', pendiente: 'Por confirmar', confirmada: 'Confirmada',
+             completada: 'Atendida', cancelada: 'Cancelada' }[k] || (c.Estado || '');
+  }
+
+  function citasDelDia(fecha) {
+    return _citasMes
+      .filter(function(c) { return c.Fecha === fecha; })
+      .sort(function(a, b) { return String(a.Hora) < String(b.Hora) ? -1 : 1; });
+  }
+
+  function renderizarCalendario() {
+    var y = _mes.y, m = _mes.m;
+    var hoy = fechaHoyISO();
+
+    if (!_diaSel || _diaSel.slice(0, 7) !== iso(y, m, 1).slice(0, 7)) {
+      _diaSel = (hoy.slice(0, 7) === iso(y, m, 1).slice(0, 7)) ? hoy : iso(y, m, 1);
+    }
+
+    document.getElementById('cal-titulo').textContent = MESES[m] + ' ' + y;
+
+    // Agrupar por día para marcar puntos
+    var porDia = {};
+    _citasMes.forEach(function(c) { (porDia[c.Fecha] = porDia[c.Fecha] || []).push(c); });
+
+    var primero = new Date(y, m, 1).getDay();
+    var total   = new Date(y, m + 1, 0).getDate();
+    var html = '';
+    for (var v = 0; v < primero; v++) html += '<span></span>';
+
+    for (var d = 1; d <= total; d++) {
+      var f = iso(y, m, d);
+      var clases = 'cal-dia' + (f === _diaSel ? ' sel' : '') + (f === hoy ? ' hoy' : '') + (f < hoy ? ' pasado' : '');
+      var puntos = '';
+      var lista  = porDia[f] || [];
+      var vistos = {};
+      lista.forEach(function(c) {
+        var k = claseEstado(c);
+        if (k !== 'cancelada' && !vistos[k] && Object.keys(vistos).length < 3) {
+          vistos[k] = true;
+          puntos += '<i class="cal-punto punto-' + k + '"></i>';
+        }
+      });
+      html += '<button class="' + clases + '" onclick="seleccionarDia(\'' + f + '\')">' + d
+        + (puntos ? '<span class="cal-puntos">' + puntos + '</span>' : '') + '</button>';
+    }
+    document.getElementById('cal-grid').innerHTML = html;
+
+    // Resumen y lista del día seleccionado
+    var delDia   = citasDelDia(_diaSel);
+    var activas  = delDia.filter(function(c) { return c.Estado !== 'Cancelada'; }).length;
+    document.getElementById('cal-resumen').innerHTML =
+      '<span class="cal-badge">' + activas + '</span><span>Cita' + (activas !== 1 ? 's' : '') + ' del día</span>';
+
+    var partes = _diaSel.split('-').map(Number);
+    var fechaSel = new Date(partes[0], partes[1] - 1, partes[2]);
+    document.getElementById('dia-titulo').textContent =
+      DIAS[fechaSel.getDay()] + ', ' + partes[2] + ' de ' + MESES[partes[1] - 1].toLowerCase() + ' de ' + partes[0];
+    document.getElementById('dia-sub').textContent =
+      delDia.length + ' cita' + (delDia.length !== 1 ? 's' : '') + ' programada' + (delDia.length !== 1 ? 's' : '');
+
+    var cont = document.getElementById('dia-lista');
+    cont.innerHTML = '';
+    if (delDia.length === 0) {
+      cont.innerHTML = '<div class="dia-vacio">No hay citas este día</div>';
+      return;
+    }
+
+    var frag = document.createDocumentFragment();
+    delDia.forEach(function(c) { frag.appendChild(crearFilaCita(c)); });
+    cont.appendChild(frag);
+  }
+
+  function crearFilaCita(c) {
+    var k    = claseEstado(c);
+    var item = document.createElement('div');
+    item.className = 'dia-item';
+    var sub = textoEstado(c) + (c.Nombre_Servicio ? ' · ' + c.Nombre_Servicio : '');
+
+    item.innerHTML =
+      '<button class="cita-fila fila-' + k + '" onclick="toggleDetalleCita(\'' + escHTML(c.ID_Cita) + '\')">'
+      +   '<span class="fila-izq"><span class="fila-ico">🕒</span>'
+      +     '<span class="fila-texto"><span class="fila-hora">' + escHTML(c.Hora) + '</span>'
+      +     '<span class="fila-sub">' + escHTML(sub) + '</span></span></span>'
+      +   '<span class="fila-cliente">👤 ' + escHTML(c.Nombre_Cliente || 'Cliente') + '</span>'
+      + '</button>'
+      + '<div class="fila-detalle' + (String(_detalleAbierto) === String(c.ID_Cita) ? '' : ' oculto') + '"></div>';
+
+    if (String(_detalleAbierto) === String(c.ID_Cita)) {
+      item.querySelector('.fila-detalle').appendChild(crearCardCita(c));
+    }
+    return item;
+  }
+
+  function toggleDetalleCita(idCita) {
+    _detalleAbierto = String(_detalleAbierto) === String(idCita) ? null : idCita;
+    renderizarCalendario();
   }
 
   /* ══ Render ══ */
@@ -457,16 +864,28 @@
   }
 
   function buscarCita(idCita) {
-    for (var i = 0; i < _citas.length; i++) {
-      if (String(_citas[i].ID_Cita) === String(idCita)) return _citas[i];
+    var fuentes = _modo === 'calendario' ? [_citasMes, _citas] : [_citas, _citasMes];
+    for (var f = 0; f < fuentes.length; f++) {
+      for (var i = 0; i < fuentes[f].length; i++) {
+        if (String(fuentes[f][i].ID_Cita) === String(idCita)) return fuentes[f][i];
+      }
     }
     return null;
+  }
+
+  // Actualiza el estado en ambas listas y vuelve a dibujar la vista activa
+  function aplicarEstadoLocal(idCita, estado) {
+    [_citas, _citasMes].forEach(function(arr) {
+      arr.forEach(function(c) { if (String(c.ID_Cita) === String(idCita)) c.Estado = estado; });
+    });
+    if (_modo === 'calendario') renderizarCalendario();
+    else renderizarCitas();
   }
 
   /* ══ Acciones ══ */
   function cambiarEstado(idCita, nuevoEstado) {
     var cita = buscarCita(idCita);
-    if (cita) { cita.Estado = nuevoEstado; renderizarCitas(); }
+    if (cita) aplicarEstadoLocal(idCita, nuevoEstado);
     google.script.run
       .withSuccessHandler(function() {})
       .withFailureHandler(function(e) { alert((e && e.message) || 'No se pudo cambiar el estado'); recargarCitas(); })
@@ -488,8 +907,7 @@
     if (!cita) { cerrarModalCancelar(); return; }
 
     document.getElementById('modal-cancelar').classList.add('oculto');
-    cita.Estado = 'Cancelada';
-    renderizarCitas();
+    aplicarEstadoLocal(idCita, 'Cancelada');
 
     google.script.run
       .withSuccessHandler(function() {})

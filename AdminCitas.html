@@ -649,16 +649,15 @@
     });
   }
 
-  // Clave visual de la cita: pendiente, confirmada, completada, cancelada o vencida
+  // Clave visual de la cita: el color sigue siempre al estado real
   function claseEstado(c) {
-    if (esVencida(c)) return 'vencida';
     return String(c.Estado || '').toLowerCase();
   }
 
   function textoEstado(c) {
-    var k = claseEstado(c);
-    return { vencida: 'Cita pasada', pendiente: 'Por confirmar', confirmada: 'Confirmada',
-             completada: 'Atendida', cancelada: 'Cancelada' }[k] || (c.Estado || '');
+    var base = { pendiente: 'Por confirmar', confirmada: 'Confirmada',
+                 completada: 'Atendida', cancelada: 'Cancelada' }[claseEstado(c)] || (c.Estado || '');
+    return esVencida(c) ? base + ' · Fecha pasada' : base;
   }
 
   function citasDelDia(fecha) {
